@@ -1,65 +1,61 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://unistyl.es/), etc.
- */
-
-import '@/global.css';
-
-import { Platform } from 'react-native';
-
+// src/constants/theme.ts
+// Canonical JeevanHub Ayurvedic Design Tokens
 export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-  },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-  },
+  // Brand: Olive
+  olive: '#556b2f',
+  oliveAction: '#4a5c28',
+  oliveDeep: '#3f4f22',
+  oliveHover: '#3a4a1f',
+  oliveLight: '#6b8536',
+
+  // Accents
+  turmericGold: '#c8a24a',
+  barkBrown: '#8b4513',
+
+  // Backgrounds & Neutrals
+  cream: '#f8f4eb',
+  creamTint: '#eef3e4',
+  sagePale: '#eef2e3',
+  sagePale2: '#dbe4c6',
+  surface: '#ffffff',
+
+  // Ink / Text
+  ink: '#2f3524',
+  inkStrong: '#26301a',
+  inkMuted: '#5f6a55',
+  inkLight: '#8a9482',
+
+  // Lines & Borders
+  border: 'rgba(85, 107, 47, 0.14)',
+  borderStrong: 'rgba(85, 107, 47, 0.3)',
+
+  // Status
+  error: '#a33d32',
+  errorBg: '#fbeae8',
+  success: '#2e7d32',
+  successBg: '#edf7ee',
+  warning: '#b26a00',
+  warningBg: '#fff8e6',
 } as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+export const Typography = {
+  fontFamilyDisplay: 'serif',
+  fontFamilyBody: 'System',
+};
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
+export const Shadows = {
+  card: {
+    shadowColor: '#2f3524',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
+  button: {
+    shadowColor: '#3a4a1f',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
-  },
-});
-
-export const Spacing = {
-  half: 2,
-  one: 4,
-  two: 8,
-  three: 16,
-  four: 24,
-  five: 32,
-  six: 64,
-} as const;
-
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+};
