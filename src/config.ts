@@ -1,20 +1,23 @@
 // src/config.ts
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-/**
- * BACKEND_URL configuration:
- * - Physical mobile phone via Expo Go: Uses your local machine's LAN IP.
- * - Android Emulator: Uses 10.0.2.2.
- * - iOS Simulator / Web: Uses localhost.
- *
- * NOTE: If your Wi-Fi changes, update DEV_LAN_IP below with your computer's IP
- * (displayed in `expo start` output).
- */
-const DEV_LAN_IP = '10.223.203.153';
 const PORT = 5000;
 
+/**
+ * Automatically detects the laptop's IP address from Expo's dev server host.
+ * This works seamlessly when:
+ * 1. Laptop is connected to Phone Hotspot
+ * 2. Laptop and Phone are on the same Wi-Fi
+ * 3. Fallback IP is used if running in standalone native build
+ */
+const devServerHost = Constants.expoConfig?.hostUri?.split(':')[0];
+const FALLBACK_IP = '10.223.203.153';
+
+const activeHost = devServerHost || FALLBACK_IP;
+
 export const BACKEND_URL = Platform.select({
-  native: `http://${DEV_LAN_IP}:${PORT}`,
+  native: `http://${activeHost}:${PORT}`,
   default: `http://localhost:${PORT}`,
 });
 
