@@ -11,10 +11,11 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Leaf, Lock, Mail, Sparkles } from 'lucide-react-native';
+import { Leaf, Lock, Mail } from 'lucide-react-native';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { RoleToggle } from '../../components/ui/RoleToggle';
+import { BACKEND_URL } from '../../config';
 import { Colors } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { UserRole } from '../../types/auth';
@@ -34,17 +35,6 @@ export default function LoginScreen() {
     setLocalError(null);
   };
 
-  const fillDemoCredentials = () => {
-    clearError();
-    setLocalError(null);
-    if (role === 'patient') {
-      setEmail('patient@test.com');
-      setPassword('Test1234!');
-    } else {
-      setEmail('doctor@test.com');
-      setPassword('Test1234!');
-    }
-  };
 
   const handleLogin = async () => {
     clearError();
@@ -56,10 +46,16 @@ export default function LoginScreen() {
     }
 
     try {
+      console.log(`[AUTH] Attempting login: ${email.trim()} (${role}) -> ${BACKEND_URL}`);
       await login(email.trim(), password, role);
-      // Navigation is automatically handled by the root layout gatekeeper
+      console.log(`[AUTH] Login succeeded, navigating to: ${role}`);
+      if (role === 'doctor') {
+        router.replace('/(doctor)');
+      } else {
+        router.replace('/(patient)');
+      }
     } catch (err: any) {
-      // Error is set in store
+      console.error('[AUTH] Login error:', err?.message || err);
     }
   };
 
@@ -102,21 +98,8 @@ export default function LoginScreen() {
             <Text style={styles.instructionText}>
               Select your role to sign into your account
             </Text>
-
             {/* Role Switcher */}
             <RoleToggle selectedRole={role} onSelectRole={handleRoleChange} />
-
-            {/* Demo Credentials Quick-Fill Banner */}
-            <TouchableOpacity
-              onPress={fillDemoCredentials}
-              activeOpacity={0.7}
-              style={styles.demoBanner}
-            >
-              <Sparkles size={16} color={Colors.turmericGold} />
-              <Text style={styles.demoBannerText}>
-                Tap to autofill demo {role} credentials
-              </Text>
-            </TouchableOpacity>
 
             {/* Error Banner */}
             {displayError && (
@@ -185,6 +168,11 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Server Connection Indicator */}
+          <Text style={styles.serverIndicatorText}>
+            Server: {BACKEND_URL}
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -257,24 +245,7 @@ const styles = StyleSheet.create({
     color: Colors.inkMuted,
     marginBottom: 20,
   },
-  demoBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.sagePale,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    gap: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.borderStrong,
-  },
-  demoBannerText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.oliveDeep,
-  },
+
   errorBanner: {
     backgroundColor: Colors.errorBg,
     borderRadius: 12,
@@ -315,5 +286,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: Colors.oliveAction,
+  },
+  serverIndicatorText: {
+    fontSize: 11,
+    color: Colors.inkMuted,
+    textAlign: 'center',
+    marginTop: 18,
+    opacity: 0.7,
   },
 });

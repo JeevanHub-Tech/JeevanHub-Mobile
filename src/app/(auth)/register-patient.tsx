@@ -83,7 +83,7 @@ export default function RegisterPatientScreen() {
       Alert.alert(
         'Registration Successful',
         `Welcome to JeevanHub, ${data.user.firstName}!`,
-        [{ text: 'Get Started' }]
+        [{ text: 'Get Started', onPress: () => router.replace('/(patient)') }]
       );
     } catch (err: any) {
       setErrorMessage(err.message || 'Registration failed. Please try again.');

@@ -151,7 +151,7 @@ export default function RegisterDoctorScreen() {
       Alert.alert(
         'Doctor Account Created',
         `Welcome Dr. ${data.user.firstName}! Your profile has been submitted and is pending administrative verification.`,
-        [{ text: 'Continue to Dashboard' }]
+        [{ text: 'Continue to Dashboard', onPress: () => router.replace('/(doctor)') }]
       );
     } catch (err: any) {
       setErrorMessage(err.message || 'Doctor registration failed. Please review the details.');

@@ -75,10 +75,20 @@ export default function ForgotPasswordScreen() {
 
     setLoading(true);
     try {
-      await apiClient.post('/api/auth/reset-password', {
+      // Step 2a: Verify OTP to get resetToken
+      const verifyRes = await apiClient.post<{ resetToken: string }>('/api/auth/verify-otp', {
         email: email.trim().toLowerCase(),
         role,
         otp: otp.trim(),
+      });
+
+      const { resetToken } = verifyRes.data;
+
+      // Step 2b: Update password using verified resetToken
+      await apiClient.post('/api/auth/reset-password', {
+        email: email.trim().toLowerCase(),
+        role,
+        resetToken,
         newPassword,
       });
 
