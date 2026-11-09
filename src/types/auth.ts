@@ -24,6 +24,8 @@ export interface User {
   price?: number;
   approvalStatus?: string;
   upiId?: string;
+  rating?: number;
+  reviewCount?: number;
 }
 
 export interface LoginResponse {

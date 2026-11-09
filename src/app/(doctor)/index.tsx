@@ -1,6 +1,10 @@
 // src/app/(doctor)/index.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
+  Linking,
+  Platform,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -8,133 +12,251 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import {
-  Activity,
-  BarChart3,
+  CalendarDays,
   CalendarRange,
   CheckCircle2,
   Clock,
+  ExternalLink,
+  FileEdit,
   LogOut,
   Pill,
+  ShieldCheck,
   Star,
   Users,
+  Video,
 } from 'lucide-react-native';
+import { doctorApi } from '../../api/doctor';
 import { Colors } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
+import { DoctorAppointment } from '../../types/doctor';
 
 export default function DoctorHomeScreen() {
+  const router = useRouter();
   const { user, logout } = useAuthStore();
   const doctorName = user ? `Dr. ${user.firstName} ${user.lastName || ''}`.trim() : 'Doctor';
   const approvalStatus = user?.approvalStatus || 'Approved';
+
+  const [bookings, setBookings] = useState<DoctorAppointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchDashboardData = async () => {
+    if (!user?.id) return;
+    try {
+      const data = await doctorApi.getDoctorBookings(user.id);
+      setBookings(data);
+    } catch (err) {
+      console.error('Error loading doctor dashboard:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [user?.id]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchDashboardData();
+  };
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayBookings = bookings.filter((b) => b.date === todayStr);
+  const pendingOrConfirmed = bookings.filter((b) => b.status === 'confirmed' || b.status === 'pending');
+  const activeNextAppointment = pendingOrConfirmed[0] || null;
+
+  const handleStartCall = (appointment: DoctorAppointment) => {
+    const link = appointment.meetingLink || 'https://meet.google.com';
+    Linking.openURL(link).catch(() => {
+      alert('Could not open video consultation room.');
+    });
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.olive} />
+        }
       >
         {/* Top Header */}
         <View style={styles.topBar}>
           <View>
-            <Text style={styles.greeting}>Doctor Portal</Text>
+            <Text style={styles.greeting}>Ayurvedic Physician Portal</Text>
             <Text style={styles.userName}>{doctorName}</Text>
           </View>
-          <TouchableOpacity
-            onPress={logout}
-            style={styles.logoutBtn}
-            activeOpacity={0.7}
-          >
+          <TouchableOpacity onPress={logout} style={styles.logoutBtn} activeOpacity={0.7}>
             <LogOut size={16} color={Colors.oliveDeep} />
             <Text style={styles.logoutText}>Sign Out</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Verification Status Banner */}
+        {/* Account Verification Banner */}
         <View
           style={[
             styles.statusBanner,
-            approvalStatus === 'Approved'
-              ? styles.statusApproved
-              : styles.statusPending,
+            approvalStatus === 'Approved' ? styles.statusApproved : styles.statusPending,
           ]}
         >
           {approvalStatus === 'Approved' ? (
-            <CheckCircle2 size={20} color={Colors.success} />
+            <ShieldCheck size={22} color={Colors.success} />
           ) : (
-            <Clock size={20} color={Colors.warning} />
+            <Clock size={22} color={Colors.warning} />
           )}
           <View style={styles.statusInfo}>
             <Text style={styles.statusTitle}>
-              Account Status: {approvalStatus}
+              {approvalStatus === 'Approved'
+                ? 'AYUSH Verified Practitioner'
+                : 'Account Verification Pending'}
             </Text>
             <Text style={styles.statusDesc}>
               {approvalStatus === 'Approved'
-                ? 'Your Ayurvedic license is verified. You are active to receive appointments.'
+                ? 'Your clinical license is active. You are visible in the patient directory.'
                 : 'Your degree certificate is under administrative review.'}
             </Text>
           </View>
         </View>
 
-        {/* Stats Row */}
+        {/* Practice Stats Row */}
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Today's Appts</Text>
+            <Text style={styles.statNumber}>{todayBookings.length}</Text>
+            <Text style={styles.statLabel}>Today's Visits</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statNumber}>4.9</Text>
+            <Text style={styles.statNumber}>{pendingOrConfirmed.length}</Text>
+            <Text style={styles.statLabel}>Queue</Text>
+          </View>
+          <View style={styles.statBox}>
             <View style={styles.ratingRow}>
               <Star size={12} color={Colors.turmericGold} fill={Colors.turmericGold} />
-              <Text style={styles.statLabel}>Rating</Text>
+              <Text style={styles.statNumber}>{user?.rating || 4.9}</Text>
             </View>
+            <Text style={styles.statLabel}>Rating</Text>
           </View>
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>₹{user?.price || 500}</Text>
-            <Text style={styles.statLabel}>Fee / Visit</Text>
+            <Text style={styles.statLabel}>Visit Fee</Text>
           </View>
         </View>
 
-        {/* Clinical Operations Section */}
+        {/* Next Scheduled Patient Card */}
+        {activeNextAppointment && (
+          <View style={styles.nextCard}>
+            <View style={styles.nextHeader}>
+              <View style={styles.nextBadge}>
+                <View style={styles.liveDot} />
+                <Text style={styles.nextBadgeText}>Next Consultation</Text>
+              </View>
+              <Text style={styles.nextMode}>{activeNextAppointment.consultationType}</Text>
+            </View>
+
+            <Text style={styles.patientName}>
+              {activeNextAppointment.patientName || 'Aarav Sharma'}
+            </Text>
+            <Text style={styles.appointmentTime}>
+              📅 {activeNextAppointment.date} at {activeNextAppointment.time}
+            </Text>
+            {activeNextAppointment.symptoms && (
+              <Text style={styles.symptomsText} numberOfLines={2}>
+                Chief Complaints: {activeNextAppointment.symptoms}
+              </Text>
+            )}
+
+            {/* Quick Action Buttons */}
+            <View style={styles.nextActionsRow}>
+              {activeNextAppointment.consultationType === 'Online' && (
+                <TouchableOpacity
+                  style={styles.startCallBtn}
+                  onPress={() => handleStartCall(activeNextAppointment)}
+                  activeOpacity={0.8}
+                >
+                  <Video size={16} color={Colors.cream} />
+                  <Text style={styles.startCallText}>Start Video</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.prescribeBtn}
+                onPress={() =>
+                  router.push(`/(doctor)/prescribe/${activeNextAppointment._id}` as any)
+                }
+                activeOpacity={0.8}
+              >
+                <FileEdit size={16} color={Colors.oliveDeep} />
+                <Text style={styles.prescribeText}>Prescribe</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Practice Management Section */}
         <Text style={styles.sectionHeader}>Practice & Clinical Tools</Text>
 
         <View style={styles.grid}>
-          <TouchableOpacity style={styles.card} activeOpacity={0.8}>
+          {/* 1. Consultations Queue */}
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(doctor)/appointments' as any)}
+          >
             <View style={[styles.iconWrap, { backgroundColor: '#eef2e3' }]}>
-              <CalendarRange size={24} color={Colors.olive} />
+              <CalendarDays size={24} color={Colors.olive} />
             </View>
-            <Text style={styles.cardTitle}>Appointment Slots</Text>
+            <Text style={styles.cardTitle}>Consultations Queue</Text>
             <Text style={styles.cardDesc}>
-              Set up recurring availability templates and manage daily bookings
+              Daily schedule, video consultation links, and visit notes
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.card} activeOpacity={0.8}>
+          {/* 2. Slot & Schedule Management */}
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(doctor)/slots' as any)}
+          >
+            <View style={[styles.iconWrap, { backgroundColor: '#fff8e6' }]}>
+              <Clock size={24} color={Colors.turmericGold} />
+            </View>
+            <Text style={styles.cardTitle}>Availability Slots</Text>
+            <Text style={styles.cardDesc}>
+              Set recurring weekly hours, slot durations, and date leaves
+            </Text>
+          </TouchableOpacity>
+
+          {/* 3. Patients Roster */}
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(doctor)/patients' as any)}
+          >
             <View style={[styles.iconWrap, { backgroundColor: '#e8f5e9' }]}>
               <Users size={24} color={Colors.success} />
             </View>
-            <Text style={styles.cardTitle}>Patient Roster</Text>
+            <Text style={styles.cardTitle}>Patient Dossiers</Text>
             <Text style={styles.cardDesc}>
-              View patients under your care, dossiers, and medical histories
+              Patient directory, Dosha profiles, and uploaded medical vaults
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.card} activeOpacity={0.8}>
-            <View style={[styles.iconWrap, { backgroundColor: '#fff8e6' }]}>
-              <Pill size={24} color={Colors.turmericGold} />
+          {/* 4. Clinical Settings & Profile */}
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(doctor)/profile' as any)}
+          >
+            <View style={[styles.iconWrap, { backgroundColor: '#f3e5f5' }]}>
+              <ShieldCheck size={24} color="#7b1fa2" />
             </View>
-            <Text style={styles.cardTitle}>Clinical Prescribing</Text>
+            <Text style={styles.cardTitle}>Practice Settings</Text>
             <Text style={styles.cardDesc}>
-              Generate digital prescriptions, diet plans, and review OCR reports
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.card} activeOpacity={0.8}>
-            <View style={[styles.iconWrap, { backgroundColor: '#e1f5fe' }]}>
-              <BarChart3 size={24} color="#0288d1" />
-            </View>
-            <Text style={styles.cardTitle}>Doctor Analytics</Text>
-            <Text style={styles.cardDesc}>
-              Track consultations, patient retention, and clinical earnings
+              Clinic details, consultation fees, and UPI payout configurations
             </Text>
           </TouchableOpacity>
         </View>
@@ -150,7 +272,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 20,
-    paddingTop: 10,
+    paddingTop: Platform.OS === 'android' ? 24 : 10,
     paddingBottom: 40,
   },
   topBar: {
@@ -165,7 +287,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   userName: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '800',
     color: Colors.oliveDeep,
   },
@@ -190,7 +312,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     padding: 14,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
     marginBottom: 20,
   },
@@ -206,45 +328,143 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statusTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.inkStrong,
     marginBottom: 2,
   },
   statusDesc: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.inkMuted,
-    lineHeight: 16,
+    lineHeight: 15,
   },
   statsRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 24,
+    gap: 8,
+    marginBottom: 20,
   },
   statBox: {
     flex: 1,
     backgroundColor: Colors.surface,
     borderRadius: 16,
-    padding: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
   },
   statNumber: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
     color: Colors.oliveDeep,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: Colors.inkMuted,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
+  },
+  nextCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: '#c8e6c9',
+    shadowColor: Colors.ink,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  nextHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  nextBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.success,
+  },
+  nextBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.success,
+  },
+  nextMode: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.oliveDeep,
+    backgroundColor: Colors.sagePale,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  patientName: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: Colors.inkStrong,
+    marginBottom: 2,
+  },
+  appointmentTime: {
+    fontSize: 12,
+    color: Colors.inkMuted,
+    marginBottom: 6,
+  },
+  symptomsText: {
+    fontSize: 12,
+    color: Colors.inkMuted,
+    fontStyle: 'italic',
+    marginBottom: 12,
+  },
+  nextActionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  startCallBtn: {
+    flex: 1,
+    backgroundColor: Colors.oliveAction,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    gap: 6,
+  },
+  startCallText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.cream,
+  },
+  prescribeBtn: {
+    flex: 1,
+    backgroundColor: Colors.sagePale,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    gap: 6,
+  },
+  prescribeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.oliveDeep,
   },
   sectionHeader: {
     fontSize: 16,
