@@ -1,3 +1,4 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 // src/app/(patient)/book/[doctorId].tsx
 import React, { useEffect, useState } from 'react';
 import {
@@ -5,7 +6,6 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -154,7 +154,7 @@ export default function BookAppointmentScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={Colors.olive} />
           <Text style={styles.loadingText}>Loading doctor schedule...</Text>
@@ -167,7 +167,7 @@ export default function BookAppointmentScreen() {
   const fee = doctor?.price || 500;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}

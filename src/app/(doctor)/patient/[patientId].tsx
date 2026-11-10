@@ -1,3 +1,4 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 // src/app/(doctor)/patient/[patientId].tsx
 import React, { useEffect, useState } from 'react';
 import {
@@ -5,7 +6,6 @@ import {
   Linking,
   Platform,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -64,7 +64,7 @@ export default function PatientDossierScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
         <View style={styles.center}>
           <ActivityIndicator size="large" color={Colors.olive} />
           <Text style={styles.loadingText}>Loading Clinical Dossier...</Text>
@@ -92,7 +92,7 @@ export default function PatientDossierScreen() {
   const kaphaPct = Math.round((kapha / totalScore) * 100);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity

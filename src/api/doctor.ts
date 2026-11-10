@@ -18,8 +18,10 @@ export const doctorApi = {
       if (Array.isArray(data)) return data;
       if (data && Array.isArray(data.bookings)) return data.bookings;
       return [];
-    } catch (err) {
-      console.error('Error fetching doctor bookings:', err);
+    } catch (err: any) {
+      if (err?.message !== 'Invalid or expired token.') {
+        console.warn('Error fetching doctor bookings:', err?.message || err);
+      }
       return [];
     }
   },
@@ -186,6 +188,136 @@ export const doctorApi = {
   // ─── Profile & Clinical Settings ───────────────────────────────────────────
   async updateDoctorProfile(doctorId: string, updates: any): Promise<any> {
     const response = await apiClient.put(`/api/doctors/updateDoctor/${doctorId}`, updates);
+    return response.data;
+  },
+
+  async uploadDoctorCertificate(doctorId: string, fileUri: string, fileName?: string, mimeType?: string): Promise<any> {
+    const formData = new FormData();
+    formData.append('certificate', {
+      uri: fileUri,
+      name: fileName || 'degree_certificate.jpg',
+      type: mimeType || 'image/jpeg',
+    } as any);
+
+    const response = await apiClient.post(`/api/doctors/${doctorId}/certificate`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  async getDoctorReviews(doctorEmail: string): Promise<any[]> {
+    try {
+      const response = await apiClient.get(`/api/bookings/reviews/${doctorEmail}`);
+      return Array.isArray(response.data) ? response.data : [];
+    } catch {
+      return [];
+    }
+  },
+
+  // ─── Health Blogs & Publishing Studio ──────────────────────────────────────
+  async getDoctorBlogs(doctorId: string): Promise<any[]> {
+    try {
+      const response = await apiClient.get(`/api/blogs/author/doctor/${doctorId}`);
+      return Array.isArray(response.data) ? response.data : [];
+    } catch {
+      return [];
+    }
+  },
+
+  async getBlogById(blogId: string): Promise<any | null> {
+    try {
+      const response = await apiClient.get(`/api/blogs/${blogId}`);
+      return response.data;
+    } catch {
+      return null;
+    }
+  },
+
+  async createBlog(payload: {
+    title: string;
+    description: string;
+    category: string;
+    image?: string;
+    authorId: string;
+    authorType: string;
+  }): Promise<any> {
+    const response = await apiClient.post('/api/blogs', {
+      ...payload,
+      date: new Date(),
+    });
+    return response.data;
+  },
+
+  async updateBlog(blogId: string, payload: {
+    title: string;
+    description: string;
+    category: string;
+    image?: string;
+  }): Promise<any> {
+    const response = await apiClient.put(`/api/blogs/${blogId}`, payload);
+    return response.data;
+  },
+
+  async deleteBlog(blogId: string): Promise<any> {
+    const response = await apiClient.delete(`/api/blogs/${blogId}`);
+    return response.data;
+  },
+
+  async uploadBlogImage(fileUri: string, fileName?: string, mimeType?: string): Promise<string> {
+    const formData = new FormData();
+    formData.append('image', {
+      uri: fileUri,
+      name: fileName || 'blog_cover.jpg',
+      type: mimeType || 'image/jpeg',
+    } as any);
+
+    const response = await apiClient.post('/api/medicines/upload-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data?.url || response.data?.imageUrl || '';
+  },
+
+  // ─── Clinical Diet & Yoga Prescriptions ───────────────────────────────────
+  async getDietYogaByBooking(bookingId: string): Promise<any | null> {
+    try {
+      const response = await apiClient.get(`/api/diet-yoga/booking/${bookingId}`);
+      return response.data;
+    } catch {
+      return null;
+    }
+  },
+
+  async prescribeDietPlan(bookingId: string, dietPlan: any): Promise<any> {
+    const response = await apiClient.post('/api/diet-yoga', {
+      bookingId,
+      dietPlan,
+    });
+    return response.data;
+  },
+
+  async prescribeYogaPlan(bookingId: string, yogaPlan: any): Promise<any> {
+    const response = await apiClient.post('/api/diet-yoga/yoga', {
+      bookingId,
+      yogaPlan,
+    });
+    return response.data;
+  },
+
+  async generateYogaPlanWithAi(bookingId: string, patientId: string): Promise<any> {
+    const response = await apiClient.post('/api/diet-yoga/yoga/generate', {
+      bookingId,
+      patientId,
+    });
+    return response.data;
+  },
+
+  async generateDietPlanWithAi(patientId: string, healthConcern?: string): Promise<any> {
+    const response = await apiClient.post('/api/ayurveda/diet-plan/generate', {
+      patientId,
+      concern: healthConcern,
+    });
     return response.data;
   },
 };

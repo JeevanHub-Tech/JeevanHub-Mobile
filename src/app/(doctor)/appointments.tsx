@@ -1,3 +1,4 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 // src/app/(doctor)/appointments.tsx
 import React, { useEffect, useState } from 'react';
 import {
@@ -6,7 +7,6 @@ import {
   Linking,
   Platform,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,7 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Calendar,
   CheckCircle,
@@ -35,12 +35,23 @@ type SegmentTab = 'today' | 'upcoming' | 'completed';
 
 export default function DoctorAppointmentsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<SegmentTab>('today');
   const [bookings, setBookings] = useState<DoctorAppointment[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (params.tab === 'completed') {
+      setActiveTab('completed');
+    } else if (params.tab === 'upcoming') {
+      setActiveTab('upcoming');
+    } else if (params.tab === 'today') {
+      setActiveTab('today');
+    }
+  }, [params.tab]);
 
   const fetchBookings = async () => {
     if (!user?.id) return;
@@ -97,22 +108,8 @@ export default function DoctorAppointmentsScreen() {
     });
   };
 
-  const handleStartVideo = async (booking: DoctorAppointment) => {
-    try {
-      // Check for Daily.co room link first
-      const joinInfo = await doctorApi.getDailyJoinInfo(booking._id);
-      if (joinInfo && joinInfo.roomUrl) {
-        Linking.openURL(joinInfo.roomUrl);
-        return;
-      }
-      const fallbackUrl = booking.meetingLink || 'https://meet.google.com';
-      Linking.openURL(fallbackUrl);
-    } catch {
-      const fallbackUrl = booking.meetingLink || 'https://meet.google.com';
-      Linking.openURL(fallbackUrl).catch(() => {
-        Alert.alert('Error', 'Unable to open video consultation room.');
-      });
-    }
+  const handleStartVideo = (booking: DoctorAppointment) => {
+    router.push(`/consultation/${booking._id}` as any);
   };
 
   const handleMarkCompleted = (bookingId: string) => {
@@ -142,7 +139,7 @@ export default function DoctorAppointmentsScreen() {
   const filtered = getFilteredBookings();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Consultations Queue</Text>

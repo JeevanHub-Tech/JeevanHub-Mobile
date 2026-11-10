@@ -1,9 +1,9 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 // src/app/(patient)/index.tsx
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,11 +13,14 @@ import {
 import { useRouter } from 'expo-router';
 import {
   ArrowRight,
+  Bell,
   Calendar,
   HeartPulse,
   LogOut,
   MessageSquare,
+  Package,
   Salad,
+  ShoppingBag,
   Sparkles,
   Stethoscope,
   User,
@@ -64,7 +67,7 @@ export default function PatientHomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
@@ -83,14 +86,29 @@ export default function PatientHomeScreen() {
               <Text style={styles.userName}>{firstName}</Text>
             </View>
           </View>
-          <TouchableOpacity
-            onPress={logout}
-            style={styles.logoutBtn}
-            activeOpacity={0.7}
-          >
-            <LogOut size={16} color={Colors.oliveDeep} />
-            <Text style={styles.logoutText}>Sign Out</Text>
-          </TouchableOpacity>
+          <View style={styles.headerIcons}>
+            <TouchableOpacity
+              onPress={() => router.push('/notifications' as any)}
+              style={styles.iconBtn}
+              activeOpacity={0.7}
+            >
+              <Bell size={18} color={Colors.oliveDeep} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/(patient)/cart' as any)}
+              style={styles.iconBtn}
+              activeOpacity={0.7}
+            >
+              <ShoppingBag size={18} color={Colors.oliveDeep} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={logout}
+              style={styles.logoutBtn}
+              activeOpacity={0.7}
+            >
+              <LogOut size={16} color={Colors.oliveDeep} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Next Appointment Card (if active) */}
@@ -210,6 +228,36 @@ export default function PatientHomeScreen() {
               Upload prescriptions, view OCR medicine drafts and doctor reviews
             </Text>
           </TouchableOpacity>
+
+          {/* 5. Pharmacy Orders */}
+          <TouchableOpacity
+            style={styles.serviceCard}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(patient)/orders' as any)}
+          >
+            <View style={[styles.serviceIcon, { backgroundColor: '#e1f5fe' }]}>
+              <Package size={24} color="#0288d1" />
+            </View>
+            <Text style={styles.serviceTitle}>Pharmacy Orders</Text>
+            <Text style={styles.serviceDesc}>
+              Track dispatched medicines, courier delivery, and status
+            </Text>
+          </TouchableOpacity>
+
+          {/* 6. Pharmacy Cart */}
+          <TouchableOpacity
+            style={styles.serviceCard}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(patient)/cart' as any)}
+          >
+            <View style={[styles.serviceIcon, { backgroundColor: '#fff3e0' }]}>
+              <ShoppingBag size={24} color="#f57c00" />
+            </View>
+            <Text style={styles.serviceTitle}>Prescription Cart</Text>
+            <Text style={styles.serviceDesc}>
+              Review doctor prescribed formulations and checkout
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Sanjeevani AI Assistant Banner */}
@@ -276,14 +324,28 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: Colors.oliveDeep,
   },
-  logoutBtn: {
+  headerIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.sagePale,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    gap: 8,
+  },
+  iconBtn: {
+    width: 36,
+    height: 36,
     borderRadius: 12,
-    gap: 6,
+    backgroundColor: Colors.sagePale,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  logoutBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.sagePale,
     borderWidth: 1,
     borderColor: Colors.border,
   },

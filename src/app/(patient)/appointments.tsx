@@ -1,3 +1,4 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 // src/app/(patient)/appointments.tsx
 import React, { useEffect, useState } from 'react';
 import {
@@ -6,7 +7,6 @@ import {
   Linking,
   Platform,
   RefreshControl,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -20,9 +20,11 @@ import {
   ExternalLink,
   MapPin,
   PlusCircle,
+  Star,
   Video,
   XCircle,
 } from 'lucide-react-native';
+import RatingReviewModal from '../../components/RatingReviewModal';
 import { patientApi } from '../../api/patient';
 import { Colors } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
@@ -36,6 +38,8 @@ export default function AppointmentsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [selectedReviewBooking, setSelectedReviewBooking] = useState<{ id: string; doctorName: string } | null>(null);
 
   const fetchBookings = async () => {
     if (!user?.id) return;
@@ -69,10 +73,7 @@ export default function AppointmentsScreen() {
   const displayedList = activeTab === 'upcoming' ? upcomingBookings : pastBookings;
 
   const handleJoinCall = (appointment: Appointment) => {
-    const link = appointment.meetingLink || 'https://meet.google.com';
-    Linking.openURL(link).catch(() => {
-      alert('Could not open video consultation link.');
-    });
+    router.push(`/consultation/${appointment._id}` as any);
   };
 
   const renderAppointmentItem = ({ item }: { item: Appointment }) => {
@@ -165,13 +166,27 @@ export default function AppointmentsScreen() {
               <ExternalLink size={13} color={Colors.cream} />
             </TouchableOpacity>
           )}
+
+          {isCompleted && (
+            <TouchableOpacity
+              style={styles.rateButton}
+              onPress={() => {
+                setSelectedReviewBooking({ id: item._id, doctorName });
+                setReviewModalVisible(true);
+              }}
+              activeOpacity={0.8}
+            >
+              <Star size={14} color={Colors.turmericGold} fill={Colors.turmericGold} />
+              <Text style={styles.rateButtonText}>Rate Doctor</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       {/* Top Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Appointments</Text>
@@ -255,6 +270,16 @@ export default function AppointmentsScreen() {
               )}
             </View>
           }
+        />
+      )}
+
+      {selectedReviewBooking && (
+        <RatingReviewModal
+          visible={reviewModalVisible}
+          bookingId={selectedReviewBooking.id}
+          doctorName={selectedReviewBooking.doctorName}
+          onClose={() => setReviewModalVisible(false)}
+          onSubmitted={() => fetchBookings()}
         />
       )}
     </SafeAreaView>
@@ -492,5 +517,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: Colors.cream,
+  },
+  rateButton: {
+    backgroundColor: '#fff8e6',
+    borderWidth: 1,
+    borderColor: Colors.turmericGold,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  rateButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.oliveDeep,
   },
 });

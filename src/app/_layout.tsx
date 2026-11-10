@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Colors } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
 
@@ -31,7 +32,7 @@ export default function RootLayout() {
   }, [token, role, isBootstrapping, segments]);
 
   return (
-    <>
+    <SafeAreaProvider style={{ flex: 1, backgroundColor: Colors.cream }}>
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
@@ -44,7 +45,9 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(patient)" options={{ headerShown: false }} />
         <Stack.Screen name="(doctor)" options={{ headerShown: false }} />
+        <Stack.Screen name="consultation/[bookingId]" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications" options={{ headerShown: false }} />
       </Stack>
-    </>
+    </SafeAreaProvider>
   );
 }

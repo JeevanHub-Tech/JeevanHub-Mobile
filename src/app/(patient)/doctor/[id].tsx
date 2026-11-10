@@ -1,9 +1,9 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 // src/app/(patient)/doctor/[id].tsx
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -56,7 +56,7 @@ export default function DoctorDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={Colors.olive} />
           <Text style={styles.loadingText}>Loading doctor credentials...</Text>
@@ -67,7 +67,7 @@ export default function DoctorDetailScreen() {
 
   if (!doctor) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
         <View style={styles.centered}>
           <Text style={styles.errorText}>Doctor profile could not be found.</Text>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
@@ -85,7 +85,7 @@ export default function DoctorDetailScreen() {
   const reviewCount = doctor.reviewCount || 34;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom', 'left', 'right']}>
       {/* Top Bar */}
       <View style={styles.navBar}>
         <TouchableOpacity style={styles.navBackBtn} onPress={() => router.back()} activeOpacity={0.7}>

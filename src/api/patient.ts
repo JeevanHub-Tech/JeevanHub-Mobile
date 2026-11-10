@@ -62,6 +62,19 @@ export const patientApi = {
     }
   },
 
+  async submitRatingReview(bookingId: string, rating: number, review?: string): Promise<any> {
+    const response = await apiClient.put(`/api/bookings/rating-review/${bookingId}`, {
+      rating,
+      review,
+    });
+    return response.data;
+  },
+
+  async shareRecordToBooking(bookingId: string, sharedRecord: { recordId?: string; fileUrl: string; fileName: string }): Promise<any> {
+    const response = await apiClient.post(`/api/bookings/${bookingId}/shared-records`, sharedRecord);
+    return response.data;
+  },
+
   // ─── Ayurveda Prakriti & Wellness ────────────────────────────────────────────
   async getDoshaAssessment(): Promise<DoshaResult | null> {
     try {

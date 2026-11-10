@@ -1,3 +1,4 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 // src/app/(patient)/doctors.tsx
 import React, { useEffect, useState } from 'react';
 import {
@@ -5,7 +6,6 @@ import {
   FlatList,
   Platform,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -164,7 +164,7 @@ export default function DoctorsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Find Ayurvedic Doctors</Text>

@@ -62,6 +62,12 @@ export interface DoctorAppointment {
   patientName?: string;
   patientPhone?: string;
   patientEmail?: string;
+  patientAge?: number;
+  patientGender?: string;
+  dietPlanRequested?: boolean;
+  amountPaid?: number;
+  paymentStatus?: string;
+  isPaid?: boolean;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   consultationType: 'Online' | 'In-Person';
@@ -69,7 +75,15 @@ export interface DoctorAppointment {
   fee: number;
   notes?: string;
   symptoms?: string;
+  patientIllness?: string;
   meetingLink?: string;
+  meetLink?: string;
+  dailyRoomUrl?: string;
+  dateOfAppointment?: string;
+  requestAccept?: 'pending' | 'accepted' | 'denied';
+  diagnosis?: string;
+  rating?: number;
+  review?: string;
   recommendedSupplements?: PrescribedSupplement[];
   createdAt?: string;
 }
@@ -77,6 +91,7 @@ export interface DoctorAppointment {
 export interface MedicineCatalogItem {
   _id: string;
   name: string;
+  brand?: string;
   category?: string;
   price?: number;
   description?: string;

@@ -23,10 +23,23 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Format error messages
+// Response Interceptor: Format error messages & handle session expiration
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    // If the server returns 401 (Invalid/expired token), evict stale credentials
+    if (error.response?.status === 401) {
+      try {
+        const { useAuthStore } = await import('../store/authStore');
+        const logout = useAuthStore.getState().logout;
+        if (logout) {
+          await logout();
+        }
+      } catch (logoutErr) {
+        console.warn('Failed to auto-logout on 401:', logoutErr);
+      }
+    }
+
     const message =
       error.response?.data?.message ||
       error.response?.data?.error ||

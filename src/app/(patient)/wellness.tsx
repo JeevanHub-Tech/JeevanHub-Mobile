@@ -1,9 +1,9 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 // src/app/(patient)/wellness.tsx
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -221,7 +221,7 @@ export default function WellnessScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={Colors.olive} />
           <Text style={styles.loadingText}>Loading Ayurvedic profile...</Text>
@@ -231,7 +231,7 @@ export default function WellnessScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>

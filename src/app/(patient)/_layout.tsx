@@ -1,6 +1,6 @@
 // src/app/(patient)/_layout.tsx
 import React from 'react';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { Tabs } from 'expo-router';
 import {
   Calendar,
@@ -11,12 +11,28 @@ import {
 } from 'lucide-react-native';
 import { Colors } from '../../constants/theme';
 
+interface TabIconProps {
+  icon: any;
+  focused: boolean;
+  color?: any;
+}
+
+const TabIconWithPill = ({ icon: Icon, focused, color }: TabIconProps) => (
+  <View style={[styles.iconPill, focused && styles.iconPillActive]}>
+    <Icon
+      size={20}
+      color={focused ? Colors.oliveDeep : color}
+      strokeWidth={focused ? 2.5 : 1.8}
+    />
+  </View>
+);
+
 export default function PatientLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.oliveAction,
+        tabBarActiveTintColor: Colors.oliveDeep,
         tabBarInactiveTintColor: Colors.inkMuted,
         tabBarStyle: styles.tabBar,
         tabBarLabelStyle: styles.tabBarLabel,
@@ -28,7 +44,9 @@ export default function PatientLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => <Home size={size || 22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIconWithPill icon={Home} focused={focused} color={color} />
+          ),
         }}
       />
 
@@ -37,7 +55,9 @@ export default function PatientLayout() {
         name="doctors"
         options={{
           title: 'Consult',
-          tabBarIcon: ({ color, size }) => <Stethoscope size={size || 22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIconWithPill icon={Stethoscope} focused={focused} color={color} />
+          ),
         }}
       />
 
@@ -46,7 +66,9 @@ export default function PatientLayout() {
         name="appointments"
         options={{
           title: 'Bookings',
-          tabBarIcon: ({ color, size }) => <Calendar size={size || 22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIconWithPill icon={Calendar} focused={focused} color={color} />
+          ),
         }}
       />
 
@@ -55,7 +77,9 @@ export default function PatientLayout() {
         name="wellness"
         options={{
           title: 'Wellness',
-          tabBarIcon: ({ color, size }) => <Sparkles size={size || 22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIconWithPill icon={Sparkles} focused={focused} color={color} />
+          ),
         }}
       />
 
@@ -64,7 +88,9 @@ export default function PatientLayout() {
         name="records"
         options={{
           title: 'Records',
-          tabBarIcon: ({ color, size }) => <FolderHeart size={size || 22} color={color} />,
+          tabBarIcon: ({ color, focused }) => (
+            <TabIconWithPill icon={FolderHeart} focused={focused} color={color} />
+          ),
         }}
       />
 
@@ -72,24 +98,54 @@ export default function PatientLayout() {
       <Tabs.Screen
         name="chat"
         options={{
-          href: null,
+          tabBarItemStyle: { display: 'none' },
           tabBarStyle: { display: 'none' },
+          tabBarButton: () => null,
         }}
       />
 
       <Tabs.Screen
         name="doctor/[id]"
         options={{
-          href: null,
+          tabBarItemStyle: { display: 'none' },
           tabBarStyle: { display: 'none' },
+          tabBarButton: () => null,
         }}
       />
 
       <Tabs.Screen
         name="book/[doctorId]"
         options={{
-          href: null,
+          tabBarItemStyle: { display: 'none' },
           tabBarStyle: { display: 'none' },
+          tabBarButton: () => null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="cart"
+        options={{
+          tabBarItemStyle: { display: 'none' },
+          tabBarStyle: { display: 'none' },
+          tabBarButton: () => null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="checkout"
+        options={{
+          tabBarItemStyle: { display: 'none' },
+          tabBarStyle: { display: 'none' },
+          tabBarButton: () => null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="orders"
+        options={{
+          tabBarItemStyle: { display: 'none' },
+          tabBarStyle: { display: 'none' },
+          tabBarButton: () => null,
         }}
       />
     </Tabs>
@@ -100,20 +156,32 @@ const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    height: Platform.OS === 'ios' ? 88 : 64,
+    borderTopColor: '#e8ebe2',
+    height: Platform.OS === 'ios' ? 90 : 68,
     paddingBottom: Platform.OS === 'ios' ? 26 : 8,
-    paddingTop: 8,
-    elevation: 8,
+    paddingTop: 6,
+    elevation: 10,
     shadowColor: Colors.ink,
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+  },
+  iconPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+    backgroundColor: 'transparent',
+  },
+  iconPillActive: {
+    backgroundColor: '#eef3e6',
   },
   tabBarLabel: {
     fontSize: 11,
     fontWeight: '700',
-    marginTop: 2,
+    marginTop: 1,
   },
   tabBarItem: {
     paddingVertical: 2,

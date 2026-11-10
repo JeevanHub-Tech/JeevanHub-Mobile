@@ -22,10 +22,23 @@ export interface User {
   education?: string;
   designation?: string;
   price?: number;
+  dietPlanFee?: number;
   approvalStatus?: string;
   upiId?: string;
+  address?: string;
+  certificate?: string;
+  languages?: string[];
+  introduction?: string;
   rating?: number;
   reviewCount?: number;
+  bankDetails?: {
+    accountHolderName?: string | null;
+    accountNumber?: string | null;
+    ifscCode?: string | null;
+    bankName?: string | null;
+    upiId?: string | null;
+    isSubmitted?: boolean;
+  };
 }
 
 export interface LoginResponse {
