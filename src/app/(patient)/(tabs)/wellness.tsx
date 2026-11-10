@@ -10,7 +10,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import {
+  ArrowRight,
   Award,
   CheckCircle,
   CheckCircle2,
@@ -123,6 +125,7 @@ const QUESTIONS: QuizQuestion[] = [
 ];
 
 export default function WellnessScreen() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<DoshaResult | null>(null);
 
@@ -195,8 +198,19 @@ export default function WellnessScreen() {
       recommendedHerbs: getHerbs(dominant),
     };
 
+    const responses = QUESTIONS.flatMap((q, idx) => {
+      const picked = answers[idx];
+      return (['vata', 'pitta', 'kapha'] as const).map((doshaType) => ({
+        questionId: `q_${q.id}_${doshaType}`,
+        category: q.category,
+        doshaType,
+        score: picked === doshaType ? 4 : 0,
+      }));
+    });
+
     try {
       await patientApi.submitDoshaAssessment({
+        responses,
         scores: computedResult.scores,
         dominantDosha: computedResult.dominantDosha,
         answers,
@@ -240,6 +254,24 @@ export default function WellnessScreen() {
             Traditional Ayurvedic constitutional assessment & personalized Ahara-Vihara
           </Text>
         </View>
+
+        {/* Full Prescription & Wellness Hub CTA */}
+        <TouchableOpacity
+          style={styles.pwBanner}
+          activeOpacity={0.86}
+          onPress={() => router.push('/(patient)/prescription-wellness' as any)}
+        >
+          <View style={styles.pwBannerIcon}>
+            <Salad size={22} color={Colors.oliveAction} />
+          </View>
+          <View style={styles.pwBannerContent}>
+            <Text style={styles.pwBannerTitle}>Prescription & Wellness Hub</Text>
+            <Text style={styles.pwBannerDesc}>
+              7-day Weekly Meal Planner, Yoga videos, prescribed medicines & doctor plan requests
+            </Text>
+          </View>
+          <ArrowRight size={18} color={Colors.oliveDeep} />
+        </TouchableOpacity>
 
         {/* ─── QUIZ IN PROGRESS ─────────────────────────────────────────────── */}
         {inQuiz && (
@@ -542,6 +574,39 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.inkMuted,
     marginTop: 4,
+  },
+  pwBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Colors.creamTint,
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+  },
+  pwBannerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pwBannerContent: {
+    flex: 1,
+  },
+  pwBannerTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.oliveDeep,
+    marginBottom: 2,
+  },
+  pwBannerDesc: {
+    fontSize: 11,
+    color: Colors.inkMuted,
+    lineHeight: 16,
   },
   introCard: {
     backgroundColor: Colors.surface,

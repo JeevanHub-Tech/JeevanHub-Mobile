@@ -40,12 +40,37 @@ export const doctorApi = {
     return response.data;
   },
 
-  async getDailyJoinInfo(bookingId: string): Promise<any> {
+  async getDailyJoinInfo(bookingId: string): Promise<{ url?: string; roomUrl?: string } | null> {
     try {
-      const response = await apiClient.get(`/api/bookings/${bookingId}/daily-join`);
-      return response.data;
+      const response = await apiClient.get<{ url?: string; roomUrl?: string }>(
+        `/api/bookings/${bookingId}/daily-join`
+      );
+      const url = response.data?.url || response.data?.roomUrl;
+      return url ? { url, roomUrl: url } : response.data;
     } catch {
       return null;
+    }
+  },
+
+  async getDailyJoinUrl(bookingId: string): Promise<string> {
+    const response = await apiClient.get<{ url?: string; roomUrl?: string }>(
+      `/api/bookings/${bookingId}/daily-join`
+    );
+    const url = response.data?.url || response.data?.roomUrl;
+    if (!url) {
+      throw new Error('Video room URL was not returned by server.');
+    }
+    return url;
+  },
+
+  async getDoctorReviews(doctorId: string): Promise<DoctorAppointment[]> {
+    try {
+      const response = await apiClient.get<{ bookings?: DoctorAppointment[] }>(
+        `/api/bookings/doctor/reviews/${doctorId}`
+      );
+      return Array.isArray(response.data?.bookings) ? response.data.bookings : [];
+    } catch {
+      return [];
     }
   },
 

@@ -64,12 +64,19 @@ export interface DoctorAppointment {
   patientEmail?: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
+  dateOfAppointment?: string;
+  timeSlot?: string;
   consultationType: 'Online' | 'In-Person';
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  requestAccept?: 'pending' | 'accepted' | 'denied';
   fee: number;
   notes?: string;
   symptoms?: string;
   meetingLink?: string;
+  meetLink?: string;
+  dailyRoomUrl?: string;
+  rating?: number | null;
+  review?: string;
   recommendedSupplements?: PrescribedSupplement[];
   createdAt?: string;
 }

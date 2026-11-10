@@ -15,20 +15,33 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ArrowRight,
   Bell,
+  BookOpen,
   Calendar,
   HeartPulse,
+  Leaf,
   LogOut,
   MessageSquare,
+  Package,
+  Pill,
   Salad,
+  ShoppingCart,
   Sparkles,
   Stethoscope,
   User,
   Video,
 } from 'lucide-react-native';
 import { patientApi } from '../../../api/patient';
+import { DailyCallModal } from '../../../components/consult/DailyCallModal';
 import { Colors } from '../../../constants/theme';
 import { useAuthStore } from '../../../store/authStore';
 import { Appointment, DoshaResult } from '../../../types/patient';
+import {
+  getBookingDisplayDate,
+  getBookingDisplayTime,
+  getBookingDoctorName,
+  getBookingTimestamp,
+  resolveBookingStatus,
+} from '../../../utils/wellnessHelpers';
 
 export default function PatientHomeScreen() {
   const router = useRouter();
@@ -39,6 +52,7 @@ export default function PatientHomeScreen() {
   const [upcomingAppointment, setUpcomingAppointment] = useState<Appointment | null>(null);
   const [doshaResult, setDoshaResult] = useState<DoshaResult | null>(null);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [showCallModal, setShowCallModal] = useState(false);
 
   const loadUnreadNotifications = useCallback(async () => {
     if (!user?.id) return;
@@ -55,8 +69,17 @@ export default function PatientHomeScreen() {
     try {
       // 1. Load latest appointment
       const bookings = await patientApi.getPatientBookings(user.id);
-      const active = bookings.find((b) => b.status === 'confirmed' || b.status === 'pending');
-      setUpcomingAppointment(active || null);
+      const upcoming = bookings
+        .filter((b) => {
+          const st = resolveBookingStatus(b);
+          return st === 'confirmed' || st === 'pending';
+        })
+        .sort(
+          (a, b) =>
+            (getBookingTimestamp(a) ?? Number.MAX_SAFE_INTEGER) -
+            (getBookingTimestamp(b) ?? Number.MAX_SAFE_INTEGER)
+        );
+      setUpcomingAppointment(upcoming[0] || null);
 
       // 2. Load Dosha assessment
       const assessment = await patientApi.getDoshaAssessment();
@@ -154,21 +177,45 @@ export default function PatientHomeScreen() {
               </Text>
             </View>
             <Text style={styles.upcomingDoctor}>
-              {typeof upcomingAppointment.doctorId === 'object'
-                ? `Dr. ${upcomingAppointment.doctorId.firstName} ${upcomingAppointment.doctorId.lastName}`
-                : upcomingAppointment.doctorName || 'Dr. Ayurveda Specialist'}
+              {getBookingDoctorName(upcomingAppointment)}
             </Text>
             <Text style={styles.upcomingTime}>
-              📅 {upcomingAppointment.date} at {upcomingAppointment.time}
+              📅 {getBookingDisplayDate(upcomingAppointment)} at{' '}
+              {getBookingDisplayTime(upcomingAppointment) || 'Scheduled'}
             </Text>
-            <TouchableOpacity
-              style={styles.upcomingAction}
-              onPress={() => router.push('/(patient)/appointments')}
-              activeOpacity={0.8}
-            >
-              <Video size={16} color={Colors.cream} />
-              <Text style={styles.upcomingActionText}>View Booking & Join</Text>
-            </TouchableOpacity>
+            <View style={styles.upcomingBtnRow}>
+              {upcomingAppointment.consultationType !== 'In-Person' ? (
+                <TouchableOpacity
+                  style={[styles.upcomingAction, { flex: 1 }]}
+                  onPress={() => setShowCallModal(true)}
+                  activeOpacity={0.8}
+                >
+                  <Video size={16} color={Colors.cream} />
+                  <Text style={styles.upcomingActionText}>Join Video Call</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity
+                style={[
+                  upcomingAppointment.consultationType !== 'In-Person'
+                    ? styles.upcomingSecondaryBtn
+                    : [styles.upcomingAction, { flex: 1 }],
+                ]}
+                onPress={() => router.push('/(patient)/appointments')}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={
+                    upcomingAppointment.consultationType !== 'In-Person'
+                      ? styles.upcomingSecondaryText
+                      : styles.upcomingActionText
+                  }
+                >
+                  {upcomingAppointment.consultationType !== 'In-Person'
+                    ? 'Details'
+                    : 'View Booking'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -260,6 +307,109 @@ export default function PatientHomeScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Holistic Care & Knowledge Section */}
+        <Text style={styles.sectionHeader}>Holistic Care & Knowledge</Text>
+
+        {/* Full Prescription & Wellness Featured Card */}
+        <TouchableOpacity
+          style={styles.pwFeaturedCard}
+          activeOpacity={0.85}
+          onPress={() => router.push('/(patient)/prescription-wellness' as any)}
+        >
+          <View style={[styles.serviceIcon, { backgroundColor: '#e8f5e9', marginBottom: 0 }]}>
+            <Salad size={24} color={Colors.success} />
+          </View>
+          <View style={styles.prakritiContent}>
+            <Text style={styles.prakritiTitle}>Prescription & Wellness</Text>
+            <Text style={styles.prakritiDesc}>
+              Doctor medicines, 7-day meal planner, yoga videos & diet plan requests
+            </Text>
+          </View>
+          <ArrowRight size={18} color={Colors.olive} />
+        </TouchableOpacity>
+
+        <View style={styles.grid}>
+          {/* 1. Ayurvedic Treatments */}
+          <TouchableOpacity
+            style={styles.serviceCard}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(patient)/treatments' as any)}
+          >
+            <View style={[styles.serviceIcon, { backgroundColor: '#eef3e4' }]}>
+              <Leaf size={24} color={Colors.oliveAction} />
+            </View>
+            <Text style={styles.serviceTitle}>Treatments</Text>
+            <Text style={styles.serviceDesc}>
+              16 health areas with herbal remedies, diet & bilingual care guides
+            </Text>
+          </TouchableOpacity>
+
+          {/* 2. Health Blogs & Videos */}
+          <TouchableOpacity
+            style={styles.serviceCard}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(patient)/blogs' as any)}
+          >
+            <View style={[styles.serviceIcon, { backgroundColor: '#fdf4eb' }]}>
+              <BookOpen size={24} color={Colors.barkBrown} />
+            </View>
+            <Text style={styles.serviceTitle}>Blogs & Videos</Text>
+            <Text style={styles.serviceDesc}>
+              Expert Ayurvedic articles, wellness videos & Hindi translation
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Ayurvedic Pharmacy & Orders Section */}
+        <Text style={styles.sectionHeader}>Ayurvedic Pharmacy & Orders</Text>
+
+        <TouchableOpacity
+          style={styles.pwFeaturedCard}
+          activeOpacity={0.85}
+          onPress={() => router.push('/(patient)/medicines' as any)}
+        >
+          <View style={[styles.serviceIcon, { backgroundColor: '#eef2e3', marginBottom: 0 }]}>
+            <Pill size={24} color={Colors.oliveAction} />
+          </View>
+          <View style={styles.prakritiContent}>
+            <Text style={styles.prakritiTitle}>Ayurvedic Medicines Store</Text>
+            <Text style={styles.prakritiDesc}>
+              Browse verified herbal formulations, search by ailment & order online
+            </Text>
+          </View>
+          <ArrowRight size={18} color={Colors.olive} />
+        </TouchableOpacity>
+
+        <View style={styles.grid}>
+          <TouchableOpacity
+            style={styles.serviceCard}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(patient)/cart' as any)}
+          >
+            <View style={[styles.serviceIcon, { backgroundColor: '#fff8e6' }]}>
+              <ShoppingCart size={24} color={Colors.turmericGold} />
+            </View>
+            <Text style={styles.serviceTitle}>My Cart</Text>
+            <Text style={styles.serviceDesc}>
+              Review cart & doctor-prescribed items before checkout
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.serviceCard}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(patient)/orders' as any)}
+          >
+            <View style={[styles.serviceIcon, { backgroundColor: '#fdf4eb' }]}>
+              <Package size={24} color={Colors.barkBrown} />
+            </View>
+            <Text style={styles.serviceTitle}>My Orders</Text>
+            <Text style={styles.serviceDesc}>
+              Track Delhivery shipments, delivery updates & order history
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Sanjeevani AI Assistant Banner */}
         <TouchableOpacity
           style={styles.chatbotCard}
@@ -281,6 +431,29 @@ export default function PatientHomeScreen() {
           </View>
         </TouchableOpacity>
       </ScrollView>
+
+      <DailyCallModal
+        visible={showCallModal && Boolean(upcomingAppointment)}
+        onClose={() => setShowCallModal(false)}
+        bookingId={upcomingAppointment?._id}
+        role="patient"
+        participantTitle={
+          upcomingAppointment ? getBookingDoctorName(upcomingAppointment) : 'Doctor'
+        }
+        dateLabel={
+          upcomingAppointment ? getBookingDisplayDate(upcomingAppointment) : undefined
+        }
+        timeLabel={
+          upcomingAppointment ? getBookingDisplayTime(upcomingAppointment) : undefined
+        }
+        fallbackLink={
+          upcomingAppointment
+            ? (upcomingAppointment.meetLink && upcomingAppointment.meetLink !== 'no'
+                ? upcomingAppointment.meetLink
+                : '') || upcomingAppointment.meetingLink
+            : undefined
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -443,6 +616,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.cream,
   },
+  upcomingBtnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  upcomingSecondaryBtn: {
+    backgroundColor: Colors.sagePale,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  upcomingSecondaryText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.oliveDeep,
+  },
   prakritiCard: {
     backgroundColor: Colors.surface,
     borderRadius: 20,
@@ -457,6 +650,22 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
     shadowRadius: 10,
+    elevation: 2,
+  },
+  pwFeaturedCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 18,
+    padding: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+    shadowColor: Colors.ink,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 2,
   },
   prakritiIconWrap: {

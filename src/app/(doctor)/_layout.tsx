@@ -84,6 +84,14 @@ export default function DoctorLayout() {
           tabBarStyle: { display: 'none' },
         }}
       />
+
+      <Tabs.Screen
+        name="reviews"
+        options={{
+          href: null,
+          tabBarStyle: { display: 'none' },
+        }}
+      />
     </Tabs>
   );
 }

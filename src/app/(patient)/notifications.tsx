@@ -238,7 +238,9 @@ export default function PatientNotificationsScreen() {
     if (item.type === 'appointment') {
       router.push('/(patient)/appointments');
     } else if (item.type === 'diet' || item.type === 'yoga' || item.type === 'system') {
-      router.push('/(patient)/wellness');
+      router.push('/(patient)/prescription-wellness' as any);
+    } else if (item.type === 'order' || item.type === 'delivery' || item.type === 'payment') {
+      router.push('/(patient)/orders' as any);
     }
   };
 

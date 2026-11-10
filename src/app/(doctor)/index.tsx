@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Linking,
   Platform,
   RefreshControl,
   SafeAreaView,
@@ -28,6 +27,7 @@ import {
   Video,
 } from 'lucide-react-native';
 import { doctorApi } from '../../api/doctor';
+import { DailyCallModal } from '../../components/consult/DailyCallModal';
 import { Colors } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { DoctorAppointment } from '../../types/doctor';
@@ -41,6 +41,7 @@ export default function DoctorHomeScreen() {
   const [bookings, setBookings] = useState<DoctorAppointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [callBooking, setCallBooking] = useState<DoctorAppointment | null>(null);
 
   const fetchDashboardData = async () => {
     if (!user?.id) return;
@@ -65,15 +66,26 @@ export default function DoctorHomeScreen() {
   };
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const todayBookings = bookings.filter((b) => b.date === todayStr);
-  const pendingOrConfirmed = bookings.filter((b) => b.status === 'confirmed' || b.status === 'pending');
+  const todayBookings = bookings.filter(
+    (b) => (b.dateOfAppointment || b.date || '').split('T')[0] === todayStr
+  );
+  const pendingOrConfirmed = bookings.filter(
+    (b) =>
+      b.status === 'confirmed' ||
+      b.status === 'pending' ||
+      b.requestAccept === 'accepted'
+  );
   const activeNextAppointment = pendingOrConfirmed[0] || null;
 
+  const getPatientDisplayName = (appointment: DoctorAppointment) => {
+    if (typeof appointment.patientId === 'object' && appointment.patientId !== null) {
+      return `${appointment.patientId.firstName} ${appointment.patientId.lastName || ''}`.trim();
+    }
+    return appointment.patientName || 'Patient';
+  };
+
   const handleStartCall = (appointment: DoctorAppointment) => {
-    const link = appointment.meetingLink || 'https://meet.google.com';
-    Linking.openURL(link).catch(() => {
-      alert('Could not open video consultation room.');
-    });
+    setCallBooking(appointment);
   };
 
   return (
@@ -133,13 +145,17 @@ export default function DoctorHomeScreen() {
             <Text style={styles.statNumber}>{pendingOrConfirmed.length}</Text>
             <Text style={styles.statLabel}>Queue</Text>
           </View>
-          <View style={styles.statBox}>
+          <TouchableOpacity
+            style={styles.statBox}
+            activeOpacity={0.8}
+            onPress={() => router.push('/(doctor)/reviews' as any)}
+          >
             <View style={styles.ratingRow}>
               <Star size={12} color={Colors.turmericGold} fill={Colors.turmericGold} />
               <Text style={styles.statNumber}>{user?.rating || 4.9}</Text>
             </View>
-            <Text style={styles.statLabel}>Rating</Text>
-          </View>
+            <Text style={styles.statLabel}>Reviews ›</Text>
+          </TouchableOpacity>
           <View style={styles.statBox}>
             <Text style={styles.statNumber}>₹{user?.price || 500}</Text>
             <Text style={styles.statLabel}>Visit Fee</Text>
@@ -171,7 +187,7 @@ export default function DoctorHomeScreen() {
 
             {/* Quick Action Buttons */}
             <View style={styles.nextActionsRow}>
-              {activeNextAppointment.consultationType === 'Online' && (
+              {activeNextAppointment.consultationType?.toLowerCase() !== 'in-person' && (
                 <TouchableOpacity
                   style={styles.startCallBtn}
                   onPress={() => handleStartCall(activeNextAppointment)}
@@ -261,6 +277,25 @@ export default function DoctorHomeScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <DailyCallModal
+        visible={Boolean(callBooking)}
+        onClose={() => setCallBooking(null)}
+        bookingId={callBooking?._id}
+        role="doctor"
+        participantTitle={callBooking ? getPatientDisplayName(callBooking) : 'Patient'}
+        dateLabel={
+          callBooking ? callBooking.dateOfAppointment || callBooking.date : undefined
+        }
+        timeLabel={callBooking ? callBooking.timeSlot || callBooking.time : undefined}
+        fallbackLink={
+          callBooking
+            ? (callBooking.meetLink && callBooking.meetLink !== 'no'
+                ? callBooking.meetLink
+                : '') || callBooking.meetingLink
+            : undefined
+        }
+      />
     </SafeAreaView>
   );
 }

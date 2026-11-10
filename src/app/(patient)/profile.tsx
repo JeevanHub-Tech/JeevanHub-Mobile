@@ -27,6 +27,7 @@ import {
   MapPin,
   Phone,
   ShieldCheck,
+  Star,
   User,
 } from 'lucide-react-native';
 import { patientApi } from '../../api/patient';
@@ -459,6 +460,21 @@ export default function PatientProfileScreen() {
               <View style={styles.flexOne}>
                 <Text style={styles.vaultTitle}>Medical History & Prescriptions</Text>
                 <Text style={styles.vaultSub}>View or upload documents in your health vault</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Quick Link to Feedback & Reviews */}
+            <TouchableOpacity
+              onPress={() => router.push('/(patient)/feedback' as any)}
+              style={styles.vaultCard}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.vaultIcon, { backgroundColor: '#fff8e6' }]}>
+                <Star size={20} color={Colors.turmericGold} fill={Colors.turmericGold} />
+              </View>
+              <View style={styles.flexOne}>
+                <Text style={styles.vaultTitle}>Feedback & Reviews</Text>
+                <Text style={styles.vaultSub}>Rate consultations, medicine orders & view reviews</Text>
               </View>
             </TouchableOpacity>
 

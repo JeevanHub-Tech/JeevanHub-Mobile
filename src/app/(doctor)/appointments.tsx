@@ -3,7 +3,6 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Linking,
   Platform,
   RefreshControl,
   SafeAreaView,
@@ -27,6 +26,7 @@ import {
   Video,
 } from 'lucide-react-native';
 import { doctorApi } from '../../api/doctor';
+import { DailyCallModal } from '../../components/consult/DailyCallModal';
 import { Colors } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { DoctorAppointment } from '../../types/doctor';
@@ -41,6 +41,7 @@ export default function DoctorAppointmentsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [callBooking, setCallBooking] = useState<DoctorAppointment | null>(null);
 
   const fetchBookings = async () => {
     if (!user?.id) return;
@@ -97,22 +98,15 @@ export default function DoctorAppointmentsScreen() {
     });
   };
 
-  const handleStartVideo = async (booking: DoctorAppointment) => {
-    try {
-      // Check for Daily.co room link first
-      const joinInfo = await doctorApi.getDailyJoinInfo(booking._id);
-      if (joinInfo && joinInfo.roomUrl) {
-        Linking.openURL(joinInfo.roomUrl);
-        return;
-      }
-      const fallbackUrl = booking.meetingLink || 'https://meet.google.com';
-      Linking.openURL(fallbackUrl);
-    } catch {
-      const fallbackUrl = booking.meetingLink || 'https://meet.google.com';
-      Linking.openURL(fallbackUrl).catch(() => {
-        Alert.alert('Error', 'Unable to open video consultation room.');
-      });
+  const getPatientDisplayName = (booking: DoctorAppointment) => {
+    if (typeof booking.patientId === 'object' && booking.patientId !== null) {
+      return `${booking.patientId.firstName} ${booking.patientId.lastName || ''}`.trim();
     }
+    return booking.patientName || 'Patient';
+  };
+
+  const handleStartVideo = (booking: DoctorAppointment) => {
+    setCallBooking(booking);
   };
 
   const handleMarkCompleted = (bookingId: string) => {
@@ -232,7 +226,7 @@ export default function DoctorAppointmentsScreen() {
                 ? appointment.patientId._id
                 : appointment.patientId;
 
-            const isOnline = appointment.consultationType === 'Online';
+            const isOnline = appointment.consultationType?.toLowerCase() !== 'in-person';
             const isCompleted = appointment.status === 'completed';
 
             return (
@@ -354,6 +348,25 @@ export default function DoctorAppointmentsScreen() {
           })
         )}
       </ScrollView>
+
+      <DailyCallModal
+        visible={Boolean(callBooking)}
+        onClose={() => setCallBooking(null)}
+        bookingId={callBooking?._id}
+        role="doctor"
+        participantTitle={callBooking ? getPatientDisplayName(callBooking) : 'Patient'}
+        dateLabel={
+          callBooking ? callBooking.dateOfAppointment || callBooking.date : undefined
+        }
+        timeLabel={callBooking ? callBooking.timeSlot || callBooking.time : undefined}
+        fallbackLink={
+          callBooking
+            ? (callBooking.meetLink && callBooking.meetLink !== 'no'
+                ? callBooking.meetLink
+                : '') || callBooking.meetingLink
+            : undefined
+        }
+      />
     </SafeAreaView>
   );
 }

@@ -2,13 +2,15 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
-  Linking,
+  Modal,
   Platform,
   RefreshControl,
   SafeAreaView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -18,15 +20,32 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
+  Flag,
   MapPin,
+  MessageSquare,
+  Pill,
   PlusCircle,
+  Salad,
+  Star,
   Video,
+  X,
   XCircle,
 } from 'lucide-react-native';
 import { patientApi } from '../../../api/patient';
+import { DailyCallModal } from '../../../components/consult/DailyCallModal';
+import { RatingReviewModal } from '../../../components/consult/RatingReviewModal';
+import { DietPlanRequestModal } from '../../../components/wellness/DietPlanRequestModal';
 import { Colors } from '../../../constants/theme';
 import { useAuthStore } from '../../../store/authStore';
 import { Appointment } from '../../../types/patient';
+import {
+  getBookingDietFee,
+  getBookingDisplayDate,
+  getBookingDisplayTime,
+  getBookingDoctorName,
+  isBookingAccepted,
+  resolveBookingStatus,
+} from '../../../utils/wellnessHelpers';
 
 export default function AppointmentsScreen() {
   const router = useRouter();
@@ -36,6 +55,12 @@ export default function AppointmentsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const [dietModalBooking, setDietModalBooking] = useState<Appointment | null>(null);
+  const [callBooking, setCallBooking] = useState<Appointment | null>(null);
+  const [reviewBooking, setReviewBooking] = useState<Appointment | null>(null);
+  const [disputeBooking, setDisputeBooking] = useState<Appointment | null>(null);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false);
 
   const fetchBookings = async () => {
     if (!user?.id) return;
@@ -59,45 +84,92 @@ export default function AppointmentsScreen() {
     fetchBookings();
   };
 
-  const upcomingBookings = bookings.filter(
-    (b) => b.status === 'confirmed' || b.status === 'pending'
-  );
-  const pastBookings = bookings.filter(
-    (b) => b.status === 'completed' || b.status === 'cancelled'
-  );
+  const upcomingBookings = bookings.filter((b) => {
+    const st = resolveBookingStatus(b);
+    return st === 'confirmed' || st === 'pending';
+  });
+  const pastBookings = bookings.filter((b) => {
+    const st = resolveBookingStatus(b);
+    return st === 'completed' || st === 'cancelled';
+  });
 
   const displayedList = activeTab === 'upcoming' ? upcomingBookings : pastBookings;
 
   const handleJoinCall = (appointment: Appointment) => {
-    const link = appointment.meetingLink || 'https://meet.google.com';
-    Linking.openURL(link).catch(() => {
-      alert('Could not open video consultation link.');
-    });
+    setCallBooking(appointment);
+  };
+
+  const handleSubmitReview = async ({
+    rating,
+    comment,
+  }: {
+    rating: number;
+    comment: string;
+  }) => {
+    if (!reviewBooking) return;
+    await patientApi.submitBookingReview(reviewBooking._id, rating, comment);
+    Alert.alert('Thank You', 'Your consultation feedback has been submitted.');
+    await fetchBookings();
+  };
+
+  const handleSubmitDispute = async () => {
+    if (!disputeBooking) return;
+    if (!disputeReason.trim()) {
+      Alert.alert('Reason Required', 'Please describe the issue with this consultation.');
+      return;
+    }
+    setDisputeSubmitting(true);
+    try {
+      await patientApi.raiseBookingDispute(disputeBooking._id, disputeReason.trim());
+      Alert.alert(
+        'Issue Reported',
+        'Your consultation dispute has been logged. Payment payout remains on hold for review.'
+      );
+      setDisputeBooking(null);
+      setDisputeReason('');
+      await fetchBookings();
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        'Could not raise a dispute for this booking.';
+      Alert.alert('Dispute Error', msg);
+    } finally {
+      setDisputeSubmitting(false);
+    }
   };
 
   const renderAppointmentItem = ({ item }: { item: Appointment }) => {
     const doctorObj = typeof item.doctorId === 'object' ? item.doctorId : null;
-    const doctorName = doctorObj
-      ? `Dr. ${doctorObj.firstName} ${doctorObj.lastName || ''}`.trim()
-      : item.doctorName || 'Ayurvedic Specialist';
+    const doctorName = getBookingDoctorName(item);
     const specialization = doctorObj?.specialization?.join(', ') || 'Clinical Ayurveda';
 
-    const isConfirmed = item.status === 'confirmed';
-    const isPending = item.status === 'pending';
-    const isCompleted = item.status === 'completed';
+    const resolvedStatus = resolveBookingStatus(item);
+    const isConfirmed = resolvedStatus === 'confirmed';
+    const isPending = resolvedStatus === 'pending';
+    const isCompleted = resolvedStatus === 'completed';
+    const accepted = isBookingAccepted(item);
+    const displayDate = getBookingDisplayDate(item);
+    const displayTime = getBookingDisplayTime(item) || 'Scheduled';
+    const displayFee = item.fee ?? item.amountPaid ?? 500;
+    const publishedSupplements = (item.recommendedSupplements || []).filter(
+      (s) => s.published !== false
+    );
+    const hasPrescription = Boolean(item.diagnosis?.trim()) || publishedSupplements.length > 0;
+    const dietFee = getBookingDietFee(item);
 
     return (
       <View style={styles.card}>
         {/* Status Header */}
         <View style={styles.cardHeader}>
           <View style={styles.modeBadge}>
-            {item.consultationType === 'Online' ? (
+            {item.consultationType !== 'In-Person' ? (
               <Video size={14} color={Colors.olive} />
             ) : (
               <MapPin size={14} color={Colors.turmericGold} />
             )}
             <Text style={styles.modeText}>
-              {item.consultationType === 'Online' ? 'Video Consult' : 'In-Person Visit'}
+              {item.consultationType !== 'In-Person' ? 'Video Consult' : 'In-Person Visit'}
             </Text>
           </View>
 
@@ -111,17 +183,17 @@ export default function AppointmentsScreen() {
           >
             {isConfirmed && <CheckCircle2 size={12} color={Colors.success} />}
             {isPending && <Clock size={12} color={Colors.warning} />}
-            {item.status === 'cancelled' && <XCircle size={12} color={Colors.error} />}
+            {resolvedStatus === 'cancelled' && <XCircle size={12} color={Colors.error} />}
             <Text
               style={[
                 styles.statusText,
                 isConfirmed && { color: Colors.success },
                 isPending && { color: Colors.warning },
                 isCompleted && { color: '#0288d1' },
-                item.status === 'cancelled' && { color: Colors.error },
+                resolvedStatus === 'cancelled' && { color: Colors.error },
               ]}
             >
-              {item.status.toUpperCase()}
+              {resolvedStatus.toUpperCase()}
             </Text>
           </View>
         </View>
@@ -134,37 +206,161 @@ export default function AppointmentsScreen() {
         <View style={styles.scheduleBox}>
           <View style={styles.scheduleItem}>
             <Calendar size={15} color={Colors.olive} />
-            <Text style={styles.scheduleText}>{item.date}</Text>
+            <Text style={styles.scheduleText}>{displayDate}</Text>
           </View>
           <View style={styles.scheduleDivider} />
           <View style={styles.scheduleItem}>
             <Clock size={15} color={Colors.olive} />
-            <Text style={styles.scheduleText}>{item.time}</Text>
+            <Text style={styles.scheduleText}>{displayTime}</Text>
           </View>
         </View>
 
         {/* Notes / Symptoms */}
-        {item.notes && (
+        {(item.notes || item.patientIllness) && (
           <Text style={styles.notesText} numberOfLines={2}>
-            📝 Notes: {item.notes}
+            📝 Notes: {item.notes || item.patientIllness}
           </Text>
         )}
 
+        {/* Prescription & Diet Plan Quick Links */}
+        {accepted && (hasPrescription || item.dietPlanRequested) ? (
+          <View style={styles.wellnessPillsRow}>
+            {hasPrescription ? (
+              <TouchableOpacity
+                style={styles.rxPill}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(patient)/prescription-wellness',
+                    params: { tab: 'medicines' },
+                  } as any)
+                }
+                activeOpacity={0.8}
+              >
+                <Pill size={13} color={Colors.oliveDeep} />
+                <Text style={styles.rxPillText}>
+                  Rx ({publishedSupplements.length} Meds)
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {item.dietPlanRequested ? (
+              <TouchableOpacity
+                style={[
+                  styles.dietStatusPill,
+                  item.dietPlanStatus === 'completed'
+                    ? styles.dietReadyPill
+                    : styles.dietPendingPill,
+                ]}
+                disabled={item.dietPlanStatus !== 'completed'}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(patient)/prescription-wellness',
+                    params: { tab: 'diet' },
+                  } as any)
+                }
+                activeOpacity={0.8}
+              >
+                <Salad
+                  size={13}
+                  color={
+                    item.dietPlanStatus === 'completed'
+                      ? Colors.success
+                      : Colors.warning
+                  }
+                />
+                <Text
+                  style={[
+                    styles.dietStatusText,
+                    {
+                      color:
+                        item.dietPlanStatus === 'completed'
+                          ? Colors.success
+                          : Colors.warning,
+                    },
+                  ]}
+                >
+                  {item.dietPlanStatus === 'completed'
+                    ? 'Diet Plan Ready'
+                    : 'Diet Plan Pending'}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        ) : null}
+
+        {/* Existing Rating & Review */}
+        {item.rating && item.rating > 0 ? (
+          <View style={styles.reviewBox}>
+            <View style={styles.reviewStarsRow}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star
+                  key={star}
+                  size={13}
+                  color={Colors.turmericGold}
+                  fill={star <= (item.rating || 0) ? Colors.turmericGold : 'transparent'}
+                />
+              ))}
+              <Text style={styles.reviewRatingLabel}>You rated {item.rating}/5</Text>
+            </View>
+            {item.review ? <Text style={styles.reviewQuote}>“{item.review}”</Text> : null}
+          </View>
+        ) : null}
+
         {/* Footer Actions */}
         <View style={styles.cardFooter}>
-          <Text style={styles.feeText}>Fee: ₹{item.fee || 500}</Text>
+          <Text style={styles.feeText}>Fee: ₹{displayFee}</Text>
 
-          {isConfirmed && item.consultationType === 'Online' && (
-            <TouchableOpacity
-              style={styles.joinButton}
-              onPress={() => handleJoinCall(item)}
-              activeOpacity={0.8}
-            >
-              <Video size={15} color={Colors.cream} />
-              <Text style={styles.joinButtonText}>Join Video Call</Text>
-              <ExternalLink size={13} color={Colors.cream} />
-            </TouchableOpacity>
-          )}
+          <View style={styles.footerBtnsRow}>
+            {accepted && !item.rating ? (
+              <TouchableOpacity
+                style={styles.rateBtn}
+                onPress={() => setReviewBooking(item)}
+                activeOpacity={0.8}
+              >
+                <Star size={14} color={Colors.turmericGold} fill={Colors.turmericGold} />
+                <Text style={styles.rateBtnText}>Rate Doctor</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {item.payoutStatus === 'held' ? (
+              <TouchableOpacity
+                style={styles.disputeBtn}
+                onPress={() => {
+                  setDisputeReason('');
+                  setDisputeBooking(item);
+                }}
+                activeOpacity={0.8}
+              >
+                <Flag size={13} color={Colors.error} />
+                <Text style={styles.disputeBtnText}>Report Issue</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {accepted && !item.dietPlanRequested ? (
+              <TouchableOpacity
+                style={styles.requestDietBtn}
+                onPress={() => setDietModalBooking(item)}
+                activeOpacity={0.8}
+              >
+                <Salad size={14} color={Colors.oliveDeep} />
+                <Text style={styles.requestDietText}>
+                  Diet Plan (+₹{dietFee})
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+
+            {isConfirmed && item.consultationType !== 'In-Person' && (
+              <TouchableOpacity
+                style={styles.joinButton}
+                onPress={() => handleJoinCall(item)}
+                activeOpacity={0.8}
+              >
+                <Video size={15} color={Colors.cream} />
+                <Text style={styles.joinButtonText}>Join Call</Text>
+                <ExternalLink size={13} color={Colors.cream} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
     );
@@ -174,7 +370,17 @@ export default function AppointmentsScreen() {
     <SafeAreaView style={styles.safeArea}>
       {/* Top Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Appointments</Text>
+        <View style={styles.headerTopRow}>
+          <Text style={styles.headerTitle}>My Appointments</Text>
+          <TouchableOpacity
+            style={styles.feedbackHubBtn}
+            onPress={() => router.push('/(patient)/feedback' as any)}
+            activeOpacity={0.8}
+          >
+            <MessageSquare size={14} color={Colors.oliveDeep} />
+            <Text style={styles.feedbackHubText}>My Reviews</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={styles.headerSubtitle}>
           Track your Ayurvedic consultations, medical sessions, and history
         </Text>
@@ -257,6 +463,90 @@ export default function AppointmentsScreen() {
           }
         />
       )}
+
+      <DietPlanRequestModal
+        visible={Boolean(dietModalBooking)}
+        booking={dietModalBooking}
+        onClose={() => setDietModalBooking(null)}
+        onSuccess={fetchBookings}
+      />
+
+      <DailyCallModal
+        visible={Boolean(callBooking)}
+        onClose={() => setCallBooking(null)}
+        bookingId={callBooking?._id}
+        role="patient"
+        participantTitle={callBooking ? getBookingDoctorName(callBooking) : 'Doctor'}
+        dateLabel={callBooking ? getBookingDisplayDate(callBooking) : undefined}
+        timeLabel={callBooking ? getBookingDisplayTime(callBooking) : undefined}
+        fallbackLink={
+          callBooking
+            ? (callBooking.meetLink && callBooking.meetLink !== 'no'
+                ? callBooking.meetLink
+                : '') || callBooking.meetingLink
+            : undefined
+        }
+      />
+
+      <RatingReviewModal
+        visible={Boolean(reviewBooking)}
+        onClose={() => setReviewBooking(null)}
+        title="Rate Consultation"
+        subtitle={reviewBooking ? getBookingDoctorName(reviewBooking) : undefined}
+        initialRating={reviewBooking?.rating || 5}
+        initialReview={reviewBooking?.review || ''}
+        onSubmit={handleSubmitReview}
+      />
+
+      <Modal
+        visible={Boolean(disputeBooking)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!disputeSubmitting) setDisputeBooking(null);
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Report Consultation Issue</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  if (!disputeSubmitting) setDisputeBooking(null);
+                }}
+                hitSlop={10}
+              >
+                <X size={20} color={Colors.inkMuted} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSubtitle}>
+              {disputeBooking ? getBookingDoctorName(disputeBooking) : 'Consultation'} • Hold payout for admin review
+            </Text>
+            <TextInput
+              style={styles.disputeInput}
+              placeholder="Explain what went wrong (e.g. doctor did not join, audio issue)..."
+              placeholderTextColor={Colors.inkLight}
+              value={disputeReason}
+              onChangeText={setDisputeReason}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+            <TouchableOpacity
+              style={[styles.disputeSubmitBtn, disputeSubmitting && { opacity: 0.7 }]}
+              onPress={handleSubmitDispute}
+              disabled={disputeSubmitting}
+              activeOpacity={0.85}
+            >
+              {disputeSubmitting ? (
+                <ActivityIndicator size="small" color={Colors.cream} />
+              ) : (
+                <Text style={styles.disputeSubmitText}>Submit Issue</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -426,6 +716,68 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.inkStrong,
   },
+  footerBtnsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+  },
+  wellnessPillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  rxPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.sagePale,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+  },
+  rxPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.oliveDeep,
+  },
+  dietStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  dietReadyPill: {
+    backgroundColor: Colors.successBg,
+  },
+  dietPendingPill: {
+    backgroundColor: Colors.warningBg,
+  },
+  dietStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  requestDietBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.creamTint,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+  },
+  requestDietText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.oliveDeep,
+  },
   joinButton: {
     backgroundColor: Colors.oliveAction,
     flexDirection: 'row',
@@ -439,6 +791,136 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: Colors.cream,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  feedbackHubBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.sagePale,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.borderStrong,
+  },
+  feedbackHubText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.oliveDeep,
+  },
+  reviewBox: {
+    backgroundColor: Colors.creamTint,
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 12,
+  },
+  reviewStarsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  reviewRatingLabel: {
+    marginLeft: 6,
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.inkStrong,
+  },
+  reviewQuote: {
+    marginTop: 5,
+    fontSize: 12,
+    color: Colors.inkMuted,
+    lineHeight: 17,
+  },
+  rateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#fff8e6',
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#f1d997',
+  },
+  rateBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.inkStrong,
+  },
+  disputeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: Colors.errorBg,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#f5c2c0',
+  },
+  disputeBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.error,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(30, 36, 20, 0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: Colors.oliveDeep,
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: Colors.inkMuted,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  disputeInput: {
+    backgroundColor: Colors.cream,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    padding: 12,
+    minHeight: 96,
+    fontSize: 13,
+    color: Colors.inkStrong,
+    marginBottom: 14,
+  },
+  disputeSubmitBtn: {
+    backgroundColor: Colors.error,
+    paddingVertical: 13,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  disputeSubmitText: {
+    color: Colors.cream,
+    fontSize: 14,
+    fontWeight: '700',
   },
   centered: {
     flex: 1,
