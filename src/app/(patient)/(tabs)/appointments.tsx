@@ -23,10 +23,10 @@ import {
   Video,
   XCircle,
 } from 'lucide-react-native';
-import { patientApi } from '../../api/patient';
-import { Colors } from '../../constants/theme';
-import { useAuthStore } from '../../store/authStore';
-import { Appointment } from '../../types/patient';
+import { patientApi } from '../../../api/patient';
+import { Colors } from '../../../constants/theme';
+import { useAuthStore } from '../../../store/authStore';
+import { Appointment } from '../../../types/patient';
 
 export default function AppointmentsScreen() {
   const router = useRouter();

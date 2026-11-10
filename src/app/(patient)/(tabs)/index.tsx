@@ -1,18 +1,20 @@
 // src/app/(patient)/index.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ArrowRight,
+  Bell,
   Calendar,
   HeartPulse,
   LogOut,
@@ -23,10 +25,10 @@ import {
   User,
   Video,
 } from 'lucide-react-native';
-import { patientApi } from '../../api/patient';
-import { Colors } from '../../constants/theme';
-import { useAuthStore } from '../../store/authStore';
-import { Appointment, DoshaResult } from '../../types/patient';
+import { patientApi } from '../../../api/patient';
+import { Colors } from '../../../constants/theme';
+import { useAuthStore } from '../../../store/authStore';
+import { Appointment, DoshaResult } from '../../../types/patient';
 
 export default function PatientHomeScreen() {
   const router = useRouter();
@@ -36,8 +38,19 @@ export default function PatientHomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [upcomingAppointment, setUpcomingAppointment] = useState<Appointment | null>(null);
   const [doshaResult, setDoshaResult] = useState<DoshaResult | null>(null);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
-  const loadDashboardData = async () => {
+  const loadUnreadNotifications = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const items = await patientApi.getNotifications();
+      setUnreadNotifications(items.filter((n) => !n.isRead).length);
+    } catch {
+      // Non-blocking badge fetch
+    }
+  }, [user?.id]);
+
+  const loadDashboardData = useCallback(async () => {
     if (!user?.id) return;
     try {
       // 1. Load latest appointment
@@ -48,14 +61,23 @@ export default function PatientHomeScreen() {
       // 2. Load Dosha assessment
       const assessment = await patientApi.getDoshaAssessment();
       setDoshaResult(assessment);
+
+      // 3. Load unread notifications count
+      await loadUnreadNotifications();
     } catch {
       // Non-blocking dashboard load
     }
-  };
+  }, [user?.id, loadUnreadNotifications]);
 
   useEffect(() => {
     loadDashboardData();
-  }, [user?.id]);
+  }, [loadDashboardData]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUnreadNotifications();
+    }, [loadUnreadNotifications])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -64,7 +86,7 @@ export default function PatientHomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
@@ -74,23 +96,49 @@ export default function PatientHomeScreen() {
       >
         {/* Top Header */}
         <View style={styles.topBar}>
-          <View style={styles.userInfo}>
-            <View style={styles.avatar}>
-              <User size={22} color={Colors.cream} />
-            </View>
+          <TouchableOpacity
+            onPress={() => router.push('/(patient)/profile')}
+            style={styles.userInfo}
+            activeOpacity={0.75}
+            accessibilityLabel="Open profile"
+          >
+            {user?.profileImage ? (
+              <Image source={{ uri: user.profileImage }} style={styles.avatarImg} />
+            ) : (
+              <View style={styles.avatar}>
+                <User size={22} color={Colors.cream} />
+              </View>
+            )}
             <View>
               <Text style={styles.greeting}>Namaste,</Text>
               <Text style={styles.userName}>{firstName}</Text>
             </View>
-          </View>
-          <TouchableOpacity
-            onPress={logout}
-            style={styles.logoutBtn}
-            activeOpacity={0.7}
-          >
-            <LogOut size={16} color={Colors.oliveDeep} />
-            <Text style={styles.logoutText}>Sign Out</Text>
           </TouchableOpacity>
+          <View style={styles.topActions}>
+            <TouchableOpacity
+              onPress={() => router.push('/(patient)/notifications')}
+              style={styles.bellBtn}
+              activeOpacity={0.7}
+              accessibilityLabel="Notifications"
+            >
+              <Bell size={18} color={Colors.oliveDeep} />
+              {unreadNotifications > 0 ? (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>
+                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                  </Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={logout}
+              style={styles.logoutBtn}
+              activeOpacity={0.7}
+              accessibilityLabel="Sign out"
+            >
+              <LogOut size={16} color={Colors.oliveDeep} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Next Appointment Card (if active) */}
@@ -266,6 +314,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarImg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.sagePale,
+  },
+  topActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bellBtn: {
+    position: 'relative',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: Colors.sagePale,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: Colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  bellBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
   greeting: {
     fontSize: 12,
     color: Colors.inkMuted,
@@ -277,20 +364,14 @@ const styles = StyleSheet.create({
     color: Colors.oliveDeep,
   },
   logoutBtn: {
-    flexDirection: 'row',
+    width: 40,
+    height: 40,
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: Colors.sagePale,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
     borderRadius: 12,
-    gap: 6,
     borderWidth: 1,
     borderColor: Colors.border,
-  },
-  logoutText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.oliveDeep,
   },
   upcomingCard: {
     backgroundColor: '#ffffff',

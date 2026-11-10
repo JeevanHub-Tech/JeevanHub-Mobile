@@ -15,6 +15,7 @@ export interface User {
   age?: number;
   dob?: string;
   zipCode?: string;
+  address?: string;
   // Doctor specific fields
   registrationNumber?: string;
   specialization?: string[] | string;

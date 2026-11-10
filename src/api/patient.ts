@@ -1,11 +1,14 @@
 // src/api/patient.ts
 import { apiClient } from './client';
 import {
+  AppNotification,
   Appointment,
   CreateBookingPayload,
   DoctorProfile,
   DoshaResult,
   MedicalRecordItem,
+  PatientDetails,
+  UpdatePatientPayload,
 } from '../types/patient';
 
 export const patientApi = {
@@ -118,5 +121,68 @@ export const patientApi = {
 
     const reply = response.data.response || response.data.reply || response.data.message || 'I am listening. How can I assist your health journey?';
     return { reply };
+  },
+
+  // ─── Patient Profile & Account ───────────────────────────────────────────────
+  async getPatientProfile(patientId: string): Promise<PatientDetails> {
+    const response = await apiClient.get<PatientDetails>(`/api/patients/getPatient/${patientId}`);
+    return response.data;
+  },
+
+  async updatePatientProfile(
+    patientId: string,
+    payload: UpdatePatientPayload
+  ): Promise<{ success?: boolean; message?: string; data?: PatientDetails }> {
+    const response = await apiClient.put(`/api/patients/updatePatient/${patientId}`, payload);
+    return response.data;
+  },
+
+  async uploadProfileImage(
+    patientId: string,
+    file: { uri: string; name: string; type: string }
+  ): Promise<{ url?: string; message?: string }> {
+    const formData = new FormData();
+    formData.append('image', {
+      uri: file.uri,
+      name: file.name,
+      type: file.type,
+    } as any);
+
+    const response = await apiClient.post(`/api/patients/${patientId}/profile-image`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  async changePassword(
+    currentPassword: string,
+    newPassword: string
+  ): Promise<{ message: string; token?: string }> {
+    const response = await apiClient.put('/api/auth/change-password', {
+      currentPassword,
+      newPassword,
+    });
+    return response.data;
+  },
+
+  // ─── Notifications ───────────────────────────────────────────────────────────
+  async getNotifications(): Promise<AppNotification[]> {
+    const response = await apiClient.get<AppNotification[]>('/api/notifications');
+    return Array.isArray(response.data) ? response.data : [];
+  },
+
+  async markNotificationRead(id: string): Promise<AppNotification> {
+    const response = await apiClient.patch<AppNotification>(`/api/notifications/${id}/read`);
+    return response.data;
+  },
+
+  async markAllNotificationsRead(): Promise<void> {
+    await apiClient.patch('/api/notifications/read-all');
+  },
+
+  async deleteNotification(id: string): Promise<void> {
+    await apiClient.delete(`/api/notifications/${id}`);
   },
 };

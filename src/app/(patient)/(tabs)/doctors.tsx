@@ -24,9 +24,9 @@ import {
   Stethoscope,
   User,
 } from 'lucide-react-native';
-import { patientApi } from '../../api/patient';
-import { Colors } from '../../constants/theme';
-import { DoctorProfile } from '../../types/patient';
+import { patientApi } from '../../../api/patient';
+import { Colors } from '../../../constants/theme';
+import { DoctorProfile } from '../../../types/patient';
 
 const SPECIALIZATIONS = [
   'All',

@@ -24,10 +24,10 @@ import {
   Wind,
   XCircle,
 } from 'lucide-react-native';
-import { patientApi } from '../../api/patient';
-import { Button } from '../../components/ui/Button';
-import { Colors } from '../../constants/theme';
-import { DoshaResult } from '../../types/patient';
+import { patientApi } from '../../../api/patient';
+import { Button } from '../../../components/ui/Button';
+import { Colors } from '../../../constants/theme';
+import { DoshaResult } from '../../../types/patient';
 
 interface QuizQuestion {
   id: number;

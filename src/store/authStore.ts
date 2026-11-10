@@ -17,6 +17,7 @@ interface AuthState {
   logout: () => Promise<void>;
   bootstrap: () => Promise<void>;
   setAuth: (token: string, user: User) => Promise<void>;
+  updateToken: (token: string) => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
   clearError: () => void;
 }
@@ -65,6 +66,11 @@ export const useAuthStore = create<AuthState>((set) => ({
       isLoading: false,
       error: null,
     });
+  },
+
+  updateToken: async (token: string) => {
+    await storage.setItem('token', token);
+    set({ token });
   },
 
   updateUser: (updates: Partial<User>) => {

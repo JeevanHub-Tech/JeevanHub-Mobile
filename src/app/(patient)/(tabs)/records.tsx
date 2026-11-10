@@ -26,10 +26,10 @@ import {
   UploadCloud,
   User,
 } from 'lucide-react-native';
-import { patientApi } from '../../api/patient';
-import { Colors } from '../../constants/theme';
-import { useAuthStore } from '../../store/authStore';
-import { MedicalRecordItem } from '../../types/patient';
+import { patientApi } from '../../../api/patient';
+import { Colors } from '../../../constants/theme';
+import { useAuthStore } from '../../../store/authStore';
+import { MedicalRecordItem } from '../../../types/patient';
 
 export default function RecordsScreen() {
   const { user } = useAuthStore();

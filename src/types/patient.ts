@@ -116,3 +116,49 @@ export interface ChatMessage {
   text: string;
   timestamp: string;
 }
+
+export interface PatientDetails {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  dob?: string;
+  gender?: string;
+  zipCode?: string;
+  address?: string;
+  profileImage?: string;
+  age?: number;
+}
+
+export interface UpdatePatientPayload {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  pincode?: string;
+  address?: string;
+  profileImage?: string;
+}
+
+export type NotificationCategory =
+  | 'appointment'
+  | 'diet'
+  | 'yoga'
+  | 'order'
+  | 'payment'
+  | 'delivery'
+  | 'system'
+  | string;
+
+export interface AppNotification {
+  _id: string;
+  userId: string;
+  type?: NotificationCategory;
+  title?: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
