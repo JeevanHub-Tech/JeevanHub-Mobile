@@ -40,6 +40,17 @@ import { doctorApi } from '../../api/doctor';
 import { Colors } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { DoctorAppointment } from '../../types/doctor';
+import {
+  formatBookingDate,
+  formatBookingTime,
+  getBookingComplaints,
+  getBookingFee,
+  getBookingMode,
+  getBookingStatusLabel,
+  isBookingCompleted,
+  isBookingToday,
+  isBookingUpcoming,
+} from '../../utils/bookingHelpers';
 
 export default function DoctorHomeScreen() {
   const router = useRouter();
@@ -82,28 +93,17 @@ export default function DoctorHomeScreen() {
   };
 
   // ─── Filter Bookings for Today & Queue ─────────────────────────────────────
-  const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
+  const todayBookings = bookings
+    .filter((b) => isBookingToday(b) && b.requestAccept !== 'denied' && b.status !== 'cancelled')
+    .sort((a, b) => new Date(a.dateOfAppointment || a.date).getTime() - new Date(b.dateOfAppointment || b.date).getTime());
 
-  const todayBookings = bookings.filter((b) => {
-    const raw = b.dateOfAppointment || b.date;
-    if (!raw) return false;
-    return String(raw).startsWith(todayStr);
-  });
+  const todayCompleted = todayBookings.filter((b) => isBookingCompleted(b));
 
-  const todayCompleted = todayBookings.filter(
-    (b) => b.status === 'completed' || (b.requestAccept === 'accepted' && new Date(b.dateOfAppointment || b.date) < now)
-  );
-
-  const todayQueue = todayBookings.filter(
-    (b) => b.status !== 'completed' && b.requestAccept !== 'denied' && b.status !== 'cancelled'
-  );
+  const todayQueue = todayBookings.filter((b) => !isBookingCompleted(b));
 
   const activeNextAppointment =
     todayQueue[0] ||
-    bookings.find(
-      (b) => b.requestAccept === 'accepted' && new Date(b.dateOfAppointment || b.date) >= now
-    ) ||
+    bookings.find((b) => isBookingUpcoming(b)) ||
     null;
 
   // ─── Dynamic Onboarding & Clinical Readiness Checks ────────────────────────
@@ -345,24 +345,27 @@ export default function DoctorHomeScreen() {
                 <View style={styles.liveDot} />
                 <Text style={styles.nextBadgeText}>Next Consultation</Text>
               </View>
-              <Text style={styles.nextMode}>{activeNextAppointment.consultationType || 'Online Video'}</Text>
+              <Text style={styles.nextMode}>{getBookingMode(activeNextAppointment)}</Text>
             </View>
 
             <Text style={styles.patientName}>
-              {activeNextAppointment.patientName || 'Aarav Sharma'}
+              {activeNextAppointment.patientName ||
+                (typeof activeNextAppointment.patientId === 'object' && activeNextAppointment.patientId !== null
+                  ? `${activeNextAppointment.patientId.firstName} ${activeNextAppointment.patientId.lastName || ''}`.trim()
+                  : 'Patient')}
             </Text>
             <Text style={styles.appointmentTime}>
-              📅 {activeNextAppointment.date || 'Today'} at {activeNextAppointment.time || '11:30 AM'}
+              📅 {formatBookingDate(activeNextAppointment)} at {formatBookingTime(activeNextAppointment)}
             </Text>
-            {activeNextAppointment.patientIllness && (
+            {getBookingComplaints(activeNextAppointment) ? (
               <Text style={styles.symptomsText} numberOfLines={2}>
-                Chief Complaints: {activeNextAppointment.patientIllness}
+                Chief Complaints: {getBookingComplaints(activeNextAppointment)}
               </Text>
-            )}
+            ) : null}
 
             {/* Quick Action Buttons */}
             <View style={styles.nextActionsRow}>
-              {activeNextAppointment.meetLink && activeNextAppointment.meetLink !== 'no' && (
+              {getBookingMode(activeNextAppointment) === 'Online Video' && (
                 <TouchableOpacity
                   style={styles.startCallBtn}
                   onPress={() => handleStartCall(activeNextAppointment)}
@@ -417,16 +420,23 @@ export default function DoctorHomeScreen() {
 
             <View style={styles.timelineList}>
               {todayBookings.map((b, idx) => {
-                const isDone = b.status === 'completed';
+                const isDone = isBookingCompleted(b);
+                const timeStr = formatBookingTime(b);
+                const modeStr = getBookingMode(b);
+                const pName =
+                  b.patientName ||
+                  (typeof b.patientId === 'object' && b.patientId !== null
+                    ? `${b.patientId.firstName} ${b.patientId.lastName || ''}`.trim()
+                    : 'Patient');
                 return (
                   <View key={b._id || idx} style={styles.timelineItem}>
                     <View style={styles.timePill}>
-                      <Text style={styles.timePillText}>{b.time || '11:00 AM'}</Text>
+                      <Text style={styles.timePillText}>{timeStr}</Text>
                     </View>
                     <View style={styles.timelineInfo}>
-                      <Text style={styles.timelinePatient}>{b.patientName}</Text>
+                      <Text style={styles.timelinePatient}>{pName}</Text>
                       <Text style={styles.timelineMode} numberOfLines={1}>
-                        {b.consultationType || (b.meetLink !== 'no' ? 'Online Video' : 'In-Clinic')}
+                        {modeStr}
                       </Text>
                     </View>
                     <View

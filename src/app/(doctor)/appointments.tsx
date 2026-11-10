@@ -30,6 +30,18 @@ import { doctorApi } from '../../api/doctor';
 import { Colors } from '../../constants/theme';
 import { useAuthStore } from '../../store/authStore';
 import { DoctorAppointment } from '../../types/doctor';
+import {
+  formatBookingDate,
+  formatBookingTime,
+  getBookingComplaints,
+  getBookingDate,
+  getBookingFee,
+  getBookingMode,
+  getBookingStatusLabel,
+  isBookingCompleted,
+  isBookingToday,
+  isBookingUpcoming,
+} from '../../utils/bookingHelpers';
 
 type SegmentTab = 'today' | 'upcoming' | 'completed';
 
@@ -75,21 +87,21 @@ export default function DoctorAppointmentsScreen() {
     fetchBookings();
   };
 
-  const todayStr = new Date().toISOString().split('T')[0];
-
   const getFilteredBookings = () => {
-    return bookings.filter((b) => {
+    const list = bookings.filter((b) => {
       // 1. Tab filter
-      const bDate = b.date ? b.date.split('T')[0] : '';
-      const isCompleted = b.status === 'completed';
-      const isCancelled = b.status === 'cancelled';
-
       if (activeTab === 'today') {
-        if (bDate !== todayStr || isCancelled) return false;
+        if (!isBookingToday(b) || b.requestAccept === 'denied' || b.status === 'cancelled') {
+          return false;
+        }
       } else if (activeTab === 'upcoming') {
-        if (isCompleted || isCancelled || bDate < todayStr) return false;
+        if (!isBookingUpcoming(b)) {
+          return false;
+        }
       } else if (activeTab === 'completed') {
-        if (!isCompleted && bDate >= todayStr) return false;
+        if (!isBookingCompleted(b)) {
+          return false;
+        }
       }
 
       // 2. Search query filter
@@ -97,14 +109,26 @@ export default function DoctorAppointmentsScreen() {
         const query = searchQuery.toLowerCase();
         const pName = (
           typeof b.patientId === 'object' && b.patientId !== null
-            ? `${b.patientId.firstName} ${b.patientId.lastName}`
+            ? `${b.patientId.firstName} ${b.patientId.lastName || ''}`
             : b.patientName || ''
         ).toLowerCase();
-        const pSymptoms = (b.symptoms || '').toLowerCase();
+        const pSymptoms = getBookingComplaints(b).toLowerCase();
         return pName.includes(query) || pSymptoms.includes(query);
       }
 
       return true;
+    });
+
+    // Sort order:
+    // Today & Upcoming: earliest appointment first
+    // Completed: latest appointment first
+    return list.sort((a, b) => {
+      const timeA = getBookingDate(a).getTime();
+      const timeB = getBookingDate(b).getTime();
+      if (activeTab === 'completed') {
+        return timeB - timeA;
+      }
+      return timeA - timeB;
     });
   };
 
@@ -229,8 +253,14 @@ export default function DoctorAppointmentsScreen() {
                 ? appointment.patientId._id
                 : appointment.patientId;
 
-            const isOnline = appointment.consultationType === 'Online';
-            const isCompleted = appointment.status === 'completed';
+            const mode = getBookingMode(appointment);
+            const isOnline = mode === 'Online Video';
+            const isCompleted = isBookingCompleted(appointment);
+            const statusInfo = getBookingStatusLabel(appointment);
+            const fee = getBookingFee(appointment, user?.price);
+            const complaints = getBookingComplaints(appointment);
+            const dateStr = formatBookingDate(appointment);
+            const timeStr = formatBookingTime(appointment);
 
             return (
               <View key={appointment._id} style={styles.appointmentCard}>
@@ -239,7 +269,7 @@ export default function DoctorAppointmentsScreen() {
                   <View style={styles.timeTag}>
                     <Clock size={14} color={Colors.oliveDeep} />
                     <Text style={styles.timeText}>
-                      {appointment.date} • {appointment.time}
+                      {dateStr} • {timeStr}
                     </Text>
                   </View>
 
@@ -254,7 +284,7 @@ export default function DoctorAppointmentsScreen() {
                     ) : (
                       <MapPin size={12} color={Colors.turmericGold} />
                     )}
-                    <Text style={styles.modeText}>{appointment.consultationType}</Text>
+                    <Text style={styles.modeText}>{mode}</Text>
                   </View>
                 </View>
 
@@ -269,14 +299,14 @@ export default function DoctorAppointmentsScreen() {
                       <Text style={styles.patientPhoneText}>{appointment.patientPhone}</Text>
                     )}
                   </View>
-                  <Text style={styles.feeText}>₹{appointment.fee}</Text>
+                  <Text style={styles.feeText}>₹{fee}</Text>
                 </View>
 
                 {/* Symptoms / Chief Complaints */}
-                {appointment.symptoms ? (
+                {complaints ? (
                   <View style={styles.complaintsBox}>
                     <Text style={styles.complaintsLabel}>Complaints:</Text>
-                    <Text style={styles.complaintsText}>{appointment.symptoms}</Text>
+                    <Text style={styles.complaintsText}>{complaints}</Text>
                   </View>
                 ) : null}
 
@@ -285,23 +315,31 @@ export default function DoctorAppointmentsScreen() {
                   <View
                     style={[
                       styles.statusPill,
-                      isCompleted ? styles.statusPillDone : styles.statusPillActive,
+                      statusInfo.isCompleted
+                        ? styles.statusPillDone
+                        : statusInfo.isDenied
+                        ? styles.statusPillDenied
+                        : styles.statusPillActive,
                     ]}
                   >
                     <Text
                       style={[
                         styles.statusPillText,
-                        isCompleted ? styles.statusPillTextDone : styles.statusPillTextActive,
+                        statusInfo.isCompleted
+                          ? styles.statusPillTextDone
+                          : statusInfo.isDenied
+                          ? styles.statusPillTextDenied
+                          : styles.statusPillTextActive,
                       ]}
                     >
-                      {appointment.status.toUpperCase()}
+                      {statusInfo.label}
                     </Text>
                   </View>
                 </View>
 
                 {/* Action Buttons Row */}
                 <View style={styles.actionsRow}>
-                  {isOnline && !isCompleted && (
+                  {isOnline && !isCompleted && !statusInfo.isDenied && (
                     <TouchableOpacity
                       style={styles.videoBtn}
                       onPress={() => handleStartVideo(appointment)}
@@ -336,7 +374,7 @@ export default function DoctorAppointmentsScreen() {
                     </TouchableOpacity>
                   )}
 
-                  {!isCompleted && (
+                  {!isCompleted && !statusInfo.isDenied && (
                     <TouchableOpacity
                       style={styles.completeBtn}
                       onPress={() => handleMarkCompleted(appointment._id)}
@@ -569,6 +607,9 @@ const styles = StyleSheet.create({
   statusPillDone: {
     backgroundColor: Colors.sagePale,
   },
+  statusPillDenied: {
+    backgroundColor: '#fee2e2',
+  },
   statusPillText: {
     fontSize: 10,
     fontWeight: '800',
@@ -578,6 +619,9 @@ const styles = StyleSheet.create({
   },
   statusPillTextDone: {
     color: Colors.oliveDeep,
+  },
+  statusPillTextDenied: {
+    color: '#b91c1c',
   },
   actionsRow: {
     flexDirection: 'row',
